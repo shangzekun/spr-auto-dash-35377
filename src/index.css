@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* SPR工艺系统设计系统 - 工业级界面 */
+
+@layer base {
+  :root {
+    /* 工业深色主题配色 */
+    --background: 220 13% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 220 13% 10%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 220 13% 10%;
+    --popover-foreground: 210 40% 98%;
+
+    /* 科技蓝主色调 */
+    --primary: 200 91% 48%;
+    --primary-foreground: 220 13% 8%;
+    --primary-glow: 200 91% 58%;
+
+    /* 工业灰色调 */
+    --secondary: 220 13% 15%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 220 13% 12%;
+    --muted-foreground: 215.4 16.3% 65%;
+
+    --accent: 200 91% 48%;
+    --accent-foreground: 220 13% 8%;
+
+    /* 状态色彩 */
+    --success: 142 71% 45%;
+    --success-foreground: 220 13% 8%;
+    --warning: 48 96% 53%;
+    --warning-foreground: 220 13% 8%;
+    --destructive: 0 62.8% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 13% 15%;
+    --input: 220 13% 12%;
+    --ring: 200 91% 48%;
+
+    --radius: 0.75rem;
+
+    /* 工业级渐变 */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(220 13% 12%));
+    --gradient-accent: linear-gradient(135deg, hsl(var(--accent)), hsl(200 91% 58%));
+    
+    /* 阴影系统 */
+    --shadow-glow: 0 0 20px hsl(var(--primary) / 0.3);
+    --shadow-card: 0 8px 32px hsl(220 13% 4% / 0.5);
+    --shadow-elegant: 0 4px 20px hsl(220 13% 4% / 0.3);
+
+    /* 动画过渡 */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* 侧边栏样式 */
+    --sidebar-background: 220 13% 6%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 200 91% 48%;
+    --sidebar-primary-foreground: 220 13% 6%;
+    --sidebar-accent: 220 13% 12%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 13% 15%;
+    --sidebar-ring: 200 91% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
