@@ -31,7 +31,7 @@ export function Layout({
               
               {/* User Info */}
               <div className="flex items-center gap-3">
-                <span className="text-sm font-medium text-foreground">张工程师</span>
+                <span className="text-sm font-medium text-foreground">Nukez.SHANG</span>
                 <Avatar className="h-8 w-8 hover:scale-105 transition-smooth cursor-pointer">
                   <AvatarImage src="/placeholder.svg" />
                   <AvatarFallback className="bg-gradient-primary text-primary-foreground text-xs">张</AvatarFallback>
