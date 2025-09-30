@@ -60,14 +60,14 @@ export function HistoryTable({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="font-medium">1</TableHead>
-                <TableHead className="font-medium">2</TableHead>
-                <TableHead className="font-medium">3</TableHead>
-                <TableHead className="font-medium">4</TableHead>
-                <TableHead className="font-medium">5</TableHead>
-                <TableHead className="font-medium">6</TableHead>
-                <TableHead className="font-medium">7</TableHead>
-                <TableHead className="font-medium">8</TableHead>
+                <TableHead className="font-medium">Material 1</TableHead>
+                <TableHead className="font-medium">Material 2</TableHead>
+                <TableHead className="font-medium">Material 3</TableHead>
+                <TableHead className="font-medium">Gauge 1</TableHead>
+                <TableHead className="font-medium">Gauge 2</TableHead>
+                <TableHead className="font-medium">Gauge 3</TableHead>
+                <TableHead className="font-medium">Rivet</TableHead>
+                <TableHead className="font-medium">Die</TableHead>
                 <TableHead className="font-medium">任务名称</TableHead>
                 <TableHead className="font-medium">任务类型</TableHead>
                 <TableHead className="font-medium">状态</TableHead>
