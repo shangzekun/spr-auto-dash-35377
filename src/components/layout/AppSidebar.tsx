@@ -82,14 +82,16 @@ export function AppSidebar() {
               </div>
             )}
           </div>
-          <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth" />
         </div>
 
         {/* Navigation Menu */}
         <SidebarGroup className="px-4 py-6">
-          <SidebarGroupLabel className="text-sidebar-foreground/60 font-medium mb-4">
-            {isCollapsed ? "导航" : "系统导航"}
-          </SidebarGroupLabel>
+          <div className="flex items-center justify-between mb-4">
+            <SidebarGroupLabel className="text-sidebar-foreground/60 font-medium">
+              系统导航
+            </SidebarGroupLabel>
+            <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth h-6 w-6" />
+          </div>
           
           <SidebarGroupContent>
             <SidebarMenu className="space-y-2">

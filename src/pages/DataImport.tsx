@@ -15,19 +15,24 @@ const mockProjects = [
   { id: "3", name: "测试项目C", status: "inactive", dataCount: 234 }
 ];
 
-const dataHeaders = ["连接类型", "厚度", "电流", "电压", "时间", "质量", "合格率", "结果"];
+const dataHeaders = ["Material 1", "Material 2", "Material 3", "Material 4", "Gauge 1", "Gauge 2", "Gauge 3", "Gauge 4", "Rivet", "Die"];
 
 const mockDataRows = [
-  { id: "1", data: ["钢铝连接", "6mm", "4.5kA", "380V", "2.1s", "优良", "98.5%", "Pass"] },
-  { id: "2", data: ["铝铝连接", "8mm", "5.2kA", "400V", "2.3s", "良好", "96.2%", "Pass"] },
-  { id: "3", data: ["钢钢连接", "5mm", "4.0kA", "360V", "1.9s", "优良", "99.1%", "Pass"] },
-  { id: "4", data: ["复合连接", "7mm", "4.8kA", "390V", "2.0s", "良好", "97.3%", "Pass"] }
+  { id: "1", data: ["Steel", "Aluminum", "Steel", "Aluminum", "1.2mm", "1.5mm", "1.8mm", "2.0mm", "R001", "D001"] },
+  { id: "2", data: ["Aluminum", "Aluminum", "Steel", "Steel", "1.5mm", "1.5mm", "2.0mm", "2.0mm", "R002", "D002"] },
+  { id: "3", data: ["Steel", "Steel", "Aluminum", "Aluminum", "1.0mm", "1.2mm", "1.5mm", "1.8mm", "R003", "D003"] },
+  { id: "4", data: ["Carbon", "Steel", "Aluminum", "Carbon", "1.5mm", "1.8mm", "2.0mm", "2.2mm", "R004", "D004"] }
 ];
 
+type CategoryGroup = {
+  id: string;
+  items: Array<{ id: string; data: string[] }>;
+};
+
 const categoryHeaders = [
-  { id: "recommended", title: "默认推荐", items: [] as Array<{ id: string; data: string[] }> },
-  { id: "double-pin", title: "双钉共模", items: [] as Array<{ id: string; data: string[] }> },
-  { id: "shared-pin", title: "共钉共模", items: [] as Array<{ id: string; data: string[] }> }
+  { id: "recommended", title: "默认推荐", groups: [] as CategoryGroup[], hasGroups: false },
+  { id: "double-pin", title: "双钉共模", groups: [{ id: "group-1", items: [] }] as CategoryGroup[], hasGroups: true },
+  { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }] as CategoryGroup[], hasGroups: true }
 ];
 
 export default function DataImport() {
@@ -35,63 +40,106 @@ export default function DataImport() {
   const [projects, setProjects] = useState(mockProjects);
   const [dataRows, setDataRows] = useState(mockDataRows);
   const [categories, setCategories] = useState(categoryHeaders);
-  const [draggedItem, setDraggedItem] = useState<{ id: string; data: string[]; source: string } | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ id: string; data: string[]; source: string; groupId?: string } | null>(null);
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState("");
 
-  const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string) => {
-    setDraggedItem({ id: rowId, data, source });
+  const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string, groupId?: string) => {
+    setDraggedItem({ id: rowId, data, source, groupId });
     e.dataTransfer.effectAllowed = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, categoryId: string) => {
+  const handleDrop = (e: React.DragEvent, categoryId: string, groupId?: string) => {
     e.preventDefault();
-    if (draggedItem) {
-      if (draggedItem.source === "dataRows") {
-        // 从数据行拖拽到分类
-        setCategories(prev => prev.map(cat => 
-          cat.id === categoryId 
-            ? { ...cat, items: [...cat.items, { id: draggedItem.id, data: draggedItem.data }] }
-            : cat
-        ));
-        setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
-      } else {
-        // 从一个分类拖拽到另一个分类
-        setCategories(prev => prev.map(cat => {
-          if (cat.id === categoryId) {
-            // 添加到目标分类
-            const exists = cat.items.some(item => item.id === draggedItem.id);
-            if (!exists) {
-              return { ...cat, items: [...cat.items, { id: draggedItem.id, data: draggedItem.data }] };
-            }
-            return cat;
-          } else {
-            // 从源分类移除
-            return { ...cat, items: cat.items.filter(item => item.id !== draggedItem.id) };
-          }
-        }));
+    if (!draggedItem) return;
+
+    setCategories(prev => prev.map(cat => {
+      if (cat.id === categoryId) {
+        if (cat.hasGroups && groupId) {
+          // 添加到分组
+          return {
+            ...cat,
+            groups: cat.groups.map(g => 
+              g.id === groupId 
+                ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
+                : g
+            )
+          };
+        } else if (!cat.hasGroups) {
+          // 添加到默认推荐（无分组）
+          const currentItems = cat.groups[0]?.items || [];
+          return {
+            ...cat,
+            groups: [{ id: "default", items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] }]
+          };
+        }
       }
-      setDraggedItem(null);
+      
+      // 从原位置移除
+      if (cat.hasGroups) {
+        return {
+          ...cat,
+          groups: cat.groups.map(g => ({
+            ...g,
+            items: g.items.filter(item => item.id !== draggedItem.id)
+          }))
+        };
+      } else {
+        return {
+          ...cat,
+          groups: cat.groups.map(g => ({
+            ...g,
+            items: g.items.filter(item => item.id !== draggedItem.id)
+          }))
+        };
+      }
+    }));
+
+    if (draggedItem.source === "dataRows") {
+      setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
     }
+    
+    setDraggedItem(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
   };
 
-  const handleRemoveFromCategory = (categoryId: string, itemId: string) => {
-    const item = categories.find(cat => cat.id === categoryId)?.items.find(i => i.id === itemId);
+  const handleRemoveFromCategory = (categoryId: string, groupId: string, itemId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    const group = category?.groups.find(g => g.id === groupId);
+    const item = group?.items.find(i => i.id === itemId);
+    
     if (item) {
       setCategories(prev => prev.map(cat => 
         cat.id === categoryId 
-          ? { ...cat, items: cat.items.filter(i => i.id !== itemId) }
+          ? {
+              ...cat,
+              groups: cat.groups.map(g =>
+                g.id === groupId
+                  ? { ...g, items: g.items.filter(i => i.id !== itemId) }
+                  : g
+              )
+            }
           : cat
       ));
       setDataRows(prev => [...prev, item]);
     }
+  };
+
+  const handleAddGroup = (categoryId: string) => {
+    setCategories(prev => prev.map(cat =>
+      cat.id === categoryId
+        ? {
+            ...cat,
+            groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }]
+          }
+        : cat
+    ));
   };
 
   const handleNewProject = () => {
@@ -249,22 +297,26 @@ export default function DataImport() {
                   <div className="space-y-2">
                     {/* 标题行 */}
                     <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
                       {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center">
+                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center flex-shrink-0">
                           {header}
                         </div>
                       ))}
                     </div>
                     
-                    {dataRows.map((row) => (
+                    {dataRows.map((row, rowIndex) => (
                       <div
                         key={row.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
                         className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
                       >
+                        <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
+                          {rowIndex + 1}
+                        </div>
                         {row.data.map((cell, index) => (
-                          <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center">
+                          <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center flex-shrink-0">
                             {cell}
                           </div>
                         ))}
@@ -281,52 +333,81 @@ export default function DataImport() {
                 <Card
                   key={category.id}
                   className="border-border/50 shadow-card hover:shadow-elegant transition-smooth"
-                  onDrop={(e) => handleDrop(e, category.id)}
-                  onDragOver={handleDragOver}
                 >
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     {/* 标题行 */}
-                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-2">
+                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4">
+                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
                       {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center">
+                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center flex-shrink-0">
                           {header}
                         </div>
                       ))}
                     </div>
                     
-                    <div 
-                      className="min-h-40 border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2"
-                    >
-                      {category.items.length === 0 ? (
-                        <p className="text-muted-foreground text-sm text-center py-8">
-                          拖拽数据到此处进行分组
-                        </p>
-                      ) : (
-                        category.items.map((item) => (
-                          <div 
-                            key={item.id} 
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id)}
-                            className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
-                          >
-                            {item.data.map((cell, index) => (
-                              <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center">
-                                {cell}
+                    {/* 分组显示 */}
+                    <div className="space-y-4">
+                      {category.groups.map((group, groupIndex) => (
+                        <div 
+                          key={group.id}
+                          onDrop={(e) => handleDrop(e, category.id, group.id)}
+                          onDragOver={handleDragOver}
+                          className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2 min-h-32"
+                        >
+                          {category.hasGroups && (
+                            <div className="text-sm font-medium text-muted-foreground mb-2">
+                              组 {groupIndex + 1}
+                            </div>
+                          )}
+                          
+                          {group.items.length === 0 ? (
+                            <p className="text-muted-foreground text-sm text-center py-8">
+                              拖拽数据到此处进行分组
+                            </p>
+                          ) : (
+                            group.items.map((item, itemIndex) => (
+                              <div 
+                                key={item.id} 
+                                draggable
+                                onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
+                                className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
+                              >
+                                <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
+                                  {itemIndex + 1}
+                                </div>
+                                {item.data.map((cell, index) => (
+                                  <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center flex-shrink-0">
+                                    {cell}
+                                  </div>
+                                ))}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="absolute -right-2 -top-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-smooth bg-destructive/10 hover:bg-destructive/20"
+                                  onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
+                                >
+                                  <X className="h-3 w-3 text-destructive" />
+                                </Button>
                               </div>
-                            ))}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute -right-2 -top-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-smooth bg-destructive/10 hover:bg-destructive/20"
-                              onClick={() => handleRemoveFromCategory(category.id, item.id)}
-                            >
-                              <X className="h-3 w-3 text-destructive" />
-                            </Button>
+                            ))
+                          )}
+                        </div>
+                      ))}
+                      
+                      {/* 添加新组按钮 - 仅双钉共模和共钉共模显示 */}
+                      {category.hasGroups && (
+                        <div 
+                          onClick={() => handleAddGroup(category.id)}
+                          className="border-2 border-dashed border-border/50 rounded-lg p-4 min-h-20 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-smooth group"
+                        >
+                          <div className="flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-smooth">
+                            <Plus className="w-5 h-5" />
+                            <span className="text-sm font-medium">添加新组</span>
                           </div>
-                        ))
+                        </div>
                       )}
                     </div>
                   </CardContent>
