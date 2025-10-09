@@ -60,21 +60,21 @@ export function HistoryTable({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
-                <TableHead className="font-medium">Material 1</TableHead>
-                <TableHead className="font-medium">Material 2</TableHead>
-                <TableHead className="font-medium">Material 3</TableHead>
-                <TableHead className="font-medium">Gauge 1</TableHead>
-                <TableHead className="font-medium">Gauge 2</TableHead>
-                <TableHead className="font-medium">Gauge 3</TableHead>
-                <TableHead className="font-medium">Rivet</TableHead>
-                <TableHead className="font-medium">Die</TableHead>
-                <TableHead className="font-medium">任务名称</TableHead>
-                <TableHead className="font-medium">任务类型</TableHead>
-                <TableHead className="font-medium">状态</TableHead>
-                <TableHead className="font-medium">开始时间</TableHead>
-                <TableHead className="font-medium">耗时</TableHead>
-                <TableHead className="font-medium">操作员</TableHead>
-                <TableHead className="font-medium text-right">操作</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Material 1</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Material 2</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Material 3</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Gauge 1</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Gauge 2</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Gauge 3</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Rivet</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">Die</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">任务名称</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">任务类型</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">状态</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">开始时间</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">耗时</TableHead>
+                <TableHead className="font-medium whitespace-nowrap">操作员</TableHead>
+                <TableHead className="font-medium whitespace-nowrap text-right">操作</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -83,33 +83,33 @@ export function HistoryTable({
                     暂无历史记录
                   </TableCell>
                 </TableRow> : records.map((record, index) => <TableRow key={record.id} className="hover:bg-muted/30 transition-smooth">
-                    <TableCell className="text-sm text-muted-foreground w-12">{index + 1}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="text-sm text-muted-foreground w-12">-</TableCell>
-                    <TableCell className="font-medium">{record.taskName}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">{index + 1}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">-</TableCell>
+                    <TableCell className="font-medium whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">{record.taskName}</TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge variant="outline" className="bg-accent/10 text-accent border-accent/20">
                         {record.type}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="whitespace-nowrap">
                       <Badge variant="outline" className={getStatusColor(record.status)}>
                         {getStatusLabel(record.status)}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
                       {record.startTime}
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">
                       {record.duration || "-"}
                     </TableCell>
-                    <TableCell className="text-sm">{record.operator}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px]">{record.operator}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted hover:scale-105 transition-smooth">
                           <Eye className="h-4 w-4" />

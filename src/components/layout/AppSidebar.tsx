@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { Home, Upload, Settings, Layers, BarChart3, ChevronRight } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 
 import {
   Sidebar,
@@ -12,6 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
@@ -71,7 +70,7 @@ export function AppSidebar() {
     >
       <SidebarContent className="bg-sidebar">
         {/* Logo/Brand Section */}
-        <div className="p-6 border-b border-sidebar-border">
+        <div className="p-6 border-b border-sidebar-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
               <BarChart3 className="w-4 h-4 text-primary-foreground" />
@@ -83,6 +82,7 @@ export function AppSidebar() {
               </div>
             )}
           </div>
+          <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth" />
         </div>
 
         {/* Navigation Menu */}
@@ -112,29 +112,14 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Status Indicator and Collapse Button */}
+        {/* Status Indicator */}
         <div className="mt-auto p-4 border-t border-sidebar-border">
           {!isCollapsed && (
-            <div className="flex items-center gap-2 text-sm text-sidebar-foreground/60 mb-3">
+            <div className="flex items-center gap-2 text-sm text-sidebar-foreground/60">
               <div className="w-2 h-2 bg-success rounded-full animate-pulse-glow"></div>
               <span>系统运行正常</span>
             </div>
           )}
-          
-          <div className="flex justify-end">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                // This will be handled by the SidebarProvider
-                const trigger = document.querySelector('[data-sidebar="trigger"]') as HTMLButtonElement;
-                trigger?.click();
-              }}
-              className="h-8 w-8 p-0 hover:bg-sidebar-accent hover:scale-105 transition-smooth"
-            >
-              <ChevronRight className={`h-4 w-4 transition-transform ${isCollapsed ? 'rotate-0' : 'rotate-180'}`} />
-            </Button>
-          </div>
         </div>
       </SidebarContent>
     </Sidebar>
