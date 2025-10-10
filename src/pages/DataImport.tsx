@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen } from "lucide-react";
+import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const mockProjects = [
@@ -38,6 +40,11 @@ export default function DataImport() {
   const [dataRows, setDataRows] = useState(mockDataRows);
   const [categories, setCategories] = useState(categoryHeaders);
   const [draggedItem, setDraggedItem] = useState<{ id: string; data: string[]; source: string; groupId?: string } | null>(null);
+  const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
+  const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [editingProjectName, setEditingProjectName] = useState("");
 
   /** 拖拽开始 */
   const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string, groupId?: string) => {
@@ -58,15 +65,13 @@ export default function DataImport() {
 
     setCategories(prev =>
       prev.map(cat => {
-        // 添加到目标组
+        // 目标组添加数据
         if (cat.id === categoryId) {
           if (cat.hasGroups && groupId) {
             return {
               ...cat,
               groups: cat.groups.map(g =>
-                g.id === groupId
-                  ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
-                  : g
+                g.id === groupId ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] } : g
               )
             };
           } else if (!cat.hasGroups) {
@@ -78,14 +83,12 @@ export default function DataImport() {
           }
         }
 
-        // 删除原组的数据（修复bug）
-        if (cat.id === draggedItem.source && draggedItem.groupId) {
+        // 源组删除数据（如果源是其他组）
+        if (draggedItem.source !== "dataRows") {
           return {
             ...cat,
             groups: cat.groups.map(g =>
-              g.id === draggedItem.groupId
-                ? { ...g, items: g.items.filter(item => item.id !== draggedItem.id) }
-                : g
+              g.id === draggedItem.groupId ? { ...g, items: g.items.filter(item => item.id !== draggedItem.id) } : g
             )
           };
         }
@@ -94,7 +97,7 @@ export default function DataImport() {
       })
     );
 
-    // 如果源是导入表，删除原数据
+    // 如果拖拽源是导入数据表，删除原表行
     if (draggedItem.source === "dataRows") {
       setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
     }
@@ -104,27 +107,12 @@ export default function DataImport() {
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
 
-  /** 表格样式：每列居中，横向滚动 */
-  const tableWrapperStyle = "overflow-x-auto rounded-md border border-border";
-  const tableStyle = "table-auto w-full text-center whitespace-nowrap";
-
   /** 删除组 */
   const handleDeleteGroup = (categoryId: string, groupId: string) => {
     setCategories(prev =>
       prev.map(cat =>
         cat.id === categoryId
           ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) }
-          : cat
-      )
-    );
-  };
-
-  /** 添加新组 */
-  const handleAddGroup = (categoryId: string) => {
-    setCategories(prev =>
-      prev.map(cat =>
-        cat.id === categoryId
-          ? { ...cat, groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }] }
           : cat
       )
     );
@@ -153,9 +141,67 @@ export default function DataImport() {
     setDataRows(prev => [...prev, item]);
   };
 
-  /** 数据行美化样式 */
-  const rowStyle =
-    "cursor-move transition-all hover:shadow-md hover:bg-primary/10 rounded-md px-2 py-1";
+  /** 添加新组 */
+  const handleAddGroup = (categoryId: string) => {
+    setCategories(prev =>
+      prev.map(cat =>
+        cat.id === categoryId
+          ? { ...cat, groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }] }
+          : cat
+      )
+    );
+  };
+
+  /** 创建新项目 */
+  const handleNewProject = () => {
+    if (newProjectName.trim()) {
+      const newProject = {
+        id: String(Date.now()),
+        name: newProjectName.trim(),
+        status: "active" as const,
+        dataCount: 0
+      };
+      setProjects(prev => [...prev, newProject]);
+      setNewProjectName("");
+      setIsNewProjectDialogOpen(false);
+      toast.success("项目创建成功");
+    }
+  };
+
+  /** 编辑项目 */
+  const handleEditProject = (projectId: string) => {
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setEditingProjectId(projectId);
+      setEditingProjectName(project.name);
+      setIsEditProjectDialogOpen(true);
+    }
+  };
+
+  const handleSaveEditProject = () => {
+    if (editingProjectName.trim() && editingProjectId) {
+      setProjects(prev =>
+        prev.map(p => (p.id === editingProjectId ? { ...p, name: editingProjectName.trim() } : p))
+      );
+      setEditingProjectId(null);
+      setEditingProjectName("");
+      setIsEditProjectDialogOpen(false);
+      toast.success("项目更新成功");
+    }
+  };
+
+  /** 删除项目 */
+  const handleDeleteProject = (projectId: string) => {
+    setProjects(prev => prev.filter(p => p.id !== projectId));
+    if (selectedProject === projectId && projects.length > 1) {
+      const remaining = projects.filter(p => p.id !== projectId);
+      setSelectedProject(remaining[0]?.id || "");
+    }
+    toast.success("项目已删除");
+  };
+
+  /** 表格样式：取消边框，内容不换行，横向滚动 */
+  const tableStyle = "table-auto w-full whitespace-nowrap overflow-x-auto";
 
   return (
     <div className="flex h-full">
@@ -168,7 +214,15 @@ export default function DataImport() {
             </div>
             <h2 className="text-lg font-semibold">项目管理</h2>
           </div>
+          <Button
+            className="w-full gap-2 hover:scale-105 transition-smooth"
+            onClick={() => setIsNewProjectDialogOpen(true)}
+          >
+            <Plus className="w-4 h-4" />
+            新建项目
+          </Button>
         </div>
+
         <ScrollArea className="flex-1 p-4">
           <div className="space-y-2">
             {projects.map(project => (
@@ -181,6 +235,30 @@ export default function DataImport() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="font-medium text-sm">{project.name}</h3>
+                  <div className="flex gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0"
+                      onClick={(e) => { e.stopPropagation(); handleEditProject(project.id); }}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-destructive"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id); }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={project.status === "active" ? "default" : "secondary"} className="text-xs">
+                    {project.status === "active" ? "活跃" : "非活跃"}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{project.dataCount} 条数据</span>
                 </div>
               </div>
             ))}
@@ -190,6 +268,28 @@ export default function DataImport() {
 
       {/* 右侧数据导入 */}
       <div className="flex-1 flex flex-col">
+        <div className="p-6 border-b border-border">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
+              <Upload className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">数据导入</h1>
+              <p className="text-muted-foreground">工艺数据导入与管理</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <Button className="gap-2 hover:scale-105 transition-smooth">
+              <FileText className="w-4 h-4" />
+              选择文件导入
+            </Button>
+            <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
+              <Save className="w-4 h-4" />
+              保存分组
+            </Button>
+          </div>
+        </div>
+
         <div className="flex-1 p-6 space-y-6 overflow-y-auto">
           {/* 导入数据表 */}
           {dataRows.length > 0 && (
@@ -198,14 +298,12 @@ export default function DataImport() {
                 <CardTitle className="text-lg">导入数据</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className={tableWrapperStyle}>
+                <div className="overflow-x-auto">
                   <table className={tableStyle}>
                     <thead>
-                      <tr className="text-center font-medium bg-muted/20">
-                        <th className="px-2 py-1">序号</th>
-                        {dataHeaders.map(h => (
-                          <th key={h} className="px-2 py-1">{h}</th>
-                        ))}
+                      <tr className="text-center font-medium">
+                        <th>序号</th>
+                        {dataHeaders.map(h => <th key={h}>{h}</th>)}
                       </tr>
                     </thead>
                     <tbody>
@@ -214,12 +312,10 @@ export default function DataImport() {
                           key={row.id}
                           draggable
                           onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                          className={rowStyle}
+                          className="cursor-move hover:bg-muted/20 transition-smooth"
                         >
-                          <td className="px-2 py-1">{idx + 1}</td>
-                          {row.data.map((cell, i) => (
-                            <td key={i} className="px-2 py-1">{cell}</td>
-                          ))}
+                          <td className="text-center px-2">{idx + 1}</td>
+                          {row.data.map((cell, i) => <td key={i} className="px-2">{cell}</td>)}
                         </tr>
                       ))}
                     </tbody>
@@ -256,12 +352,12 @@ export default function DataImport() {
                         </Button>
                       </div>
                     )}
-                    <div className={tableWrapperStyle}>
+                    <div className="overflow-x-auto">
                       <table className={tableStyle}>
                         <thead>
-                          <tr className="text-center font-medium bg-muted/20">
-                            <th className="px-2 py-1">序号</th>
-                            {dataHeaders.map(h => <th key={h} className="px-2 py-1">{h}</th>)}
+                          <tr className="text-center font-medium">
+                            <th>序号</th>
+                            {dataHeaders.map(h => <th key={h}>{h}</th>)}
                           </tr>
                         </thead>
                         <tbody>
@@ -275,12 +371,10 @@ export default function DataImport() {
                                 key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item.id, item.data, cat.id, group.id)}
-                                className={rowStyle}
+                                className="cursor-move hover:bg-muted/20 transition-smooth"
                               >
-                                <td className="px-2 py-1">{i + 1}</td>
-                                {item.data.map((cell, idx) => (
-                                  <td key={idx} className="px-2 py-1">{cell}</td>
-                                ))}
+                                <td className="text-center px-2">{i + 1}</td>
+                                {item.data.map((cell, idx) => <td key={idx} className="px-2">{cell}</td>)}
                               </tr>
                             ))
                           )}
