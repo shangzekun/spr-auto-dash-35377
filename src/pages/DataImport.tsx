@@ -307,7 +307,7 @@ export default function DataImport() {
                   <div className="space-y-2">
                     {/* 表头 */}
                     <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20" style={{ gridTemplateColumns }}>
-                      <div className="text-center font-medium text-sm">序号</div>
+                      <div className="text-center font-medium text-sm" style={{ width: 40 }}>序号</div>
                       {dataHeaders.map((header) => (
                         <div key={header} className="text-center font-medium text-sm">{header}</div>
                       ))}
@@ -343,7 +343,7 @@ export default function DataImport() {
                   <CardContent>
                     {/* 表头 */}
                     <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4" style={{ gridTemplateColumns }}>
-                      <div className="text-center font-medium text-sm">序号</div>
+                      <div className="text-center font-medium text-sm"style={{ width: 40 }}>序号</div>
                       {dataHeaders.map((header) => (
                         <div key={header} className="text-center font-medium text-sm">{header}</div>
                       ))}
