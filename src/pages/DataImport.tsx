@@ -57,45 +57,52 @@ export default function DataImport() {
     e.preventDefault();
     if (!draggedItem) return;
 
-    setCategories(prev =>
-      prev.map(cat => {
-        if (cat.id === categoryId) {
-          // 目标组添加数据
-          if (cat.hasGroups && groupId) {
-            return {
-              ...cat,
-              groups: cat.groups.map(g =>
-                g.id === groupId ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] } : g
-              )
-            };
-          } else if (!cat.hasGroups) {
-            const currentItems = cat.groups[0]?.items || [];
-            return {
-              ...cat,
-              groups: [{ id: "default", items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] }]
-            };
-          }
-        }
+    // 复制当前分类状态用于处理
+    const updatedCategories = [...categories];
+    
+    // 1. 从原组中移除数据
+    if (draggedItem.source !== "dataRows" && draggedItem.groupId) {
+      // 找到源分类
+      const sourceCatIndex = updatedCategories.findIndex(cat => cat.id === draggedItem.source);
+      if (sourceCatIndex !== -1) {
+        // 找到源分组并移除项目
+        updatedCategories[sourceCatIndex].groups = updatedCategories[sourceCatIndex].groups.map(g => 
+          g.id === draggedItem.groupId 
+            ? { ...g, items: g.items.filter(item => item.id !== draggedItem.id) }
+            : g
+        );
+      }
+    }
 
-        // 删除源组中该项
-        if (draggedItem.source !== "dataRows") {
-          return {
-            ...cat,
-            groups: cat.groups.map(g =>
-              g.id === draggedItem.groupId ? { ...g, items: g.items.filter(item => item.id !== draggedItem.id) } : g
-            )
-          };
-        }
+    // 2. 向目标组添加数据
+    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+    if (targetCatIndex !== -1) {
+      const targetCategory = { ...updatedCategories[targetCatIndex] };
+      
+      if (targetCategory.hasGroups && groupId) {
+        targetCategory.groups = targetCategory.groups.map(g =>
+          g.id === groupId 
+            ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
+            : g
+        );
+      } else if (!targetCategory.hasGroups) {
+        const currentItems = targetCategory.groups[0]?.items || [];
+        targetCategory.groups = [{ 
+          id: "default", 
+          items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] 
+        }];
+      }
+      
+      updatedCategories[targetCatIndex] = targetCategory;
+    }
 
-        return cat;
-      })
-    );
-
-    // 如果源是导入数据表，删除原行
+    // 3. 如果源是导入数据表，删除原行
     if (draggedItem.source === "dataRows") {
       setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
     }
 
+    // 更新分类状态
+    setCategories(updatedCategories);
     setDraggedItem(null);
   };
 
@@ -291,12 +298,12 @@ export default function DataImport() {
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 min-w-max">
+                  <div className="space-y-3 min-w-max">
                     {/* 表头 */}
                     <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 whitespace-nowrap">
-                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
+                      <div className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[50px]">序号</div>
                       {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm text-center flex-shrink-0">
+                        <div key={index} className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[max-content]">
                           {header}
                         </div>
                       ))}
@@ -308,13 +315,13 @@ export default function DataImport() {
                         key={row.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                        className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 whitespace-nowrap"
+                        className="flex items-center gap-2 p-3 bg-white rounded-lg border border-border/20 cursor-move hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 hover:shadow-sm whitespace-nowrap"
                       >
-                        <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
+                        <div className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[50px]">
                           {rowIndex + 1}
                         </div>
                         {row.data.map((cell, index) => (
-                          <div key={index} className="px-2 py-1 bg-background rounded border text-sm text-center flex-shrink-0">
+                          <div key={index} className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[max-content]">
                             {cell}
                           </div>
                         ))}
@@ -335,9 +342,9 @@ export default function DataImport() {
                   <CardContent>
                     {/* 表头 */}
                     <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4 whitespace-nowrap">
-                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
+                      <div className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[50px]">序号</div>
                       {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm text-center flex-shrink-0">
+                        <div key={index} className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[max-content]">
                           {header}
                         </div>
                       ))}
@@ -350,7 +357,7 @@ export default function DataImport() {
                           key={group.id}
                           onDrop={(e) => handleDrop(e, category.id, group.id)}
                           onDragOver={handleDragOver}
-                          className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2 min-h-32"
+                          className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-3 min-h-32"
                         >
                           {category.hasGroups && (
                             <div className="text-sm font-medium text-muted-foreground mb-2">
@@ -368,13 +375,13 @@ export default function DataImport() {
                                 key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 whitespace-nowrap relative"
+                                className="flex items-center gap-2 p-3 bg-white rounded-lg border border-border/20 cursor-move hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 hover:shadow-sm whitespace-nowrap relative group"
                               >
-                                <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
+                                <div className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[50px]">
                                   {itemIndex + 1}
                                 </div>
                                 {item.data.map((cell, index) => (
-                                  <div key={index} className="px-2 py-1 bg-background rounded border text-sm text-center flex-shrink-0">
+                                  <div key={index} className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[max-content]">
                                     {cell}
                                   </div>
                                 ))}
