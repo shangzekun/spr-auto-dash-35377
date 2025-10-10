@@ -34,6 +34,9 @@ const categoryHeaders = [
   { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true }
 ];
 
+// CSS Grid列宽模板
+const gridTemplateColumns = "80px 120px 120px 80px 80px 80px 100px 100px";
+
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
   const [projects, setProjects] = useState(mockProjects);
@@ -102,12 +105,25 @@ export default function DataImport() {
     setDraggedItem(null);
   };
 
-  const handleDragOver = (e: React.DragEvent) => e.preventDefault();
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDeleteGroup = (categoryId: string, groupId: string) => {
+    setCategories(prev =>
+      prev.map(cat =>
+        cat.id === categoryId
+          ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) }
+          : cat
+      )
+    );
+  };
 
   const handleRemoveFromCategory = (categoryId: string, groupId: string, itemId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
     const item = group?.items.find(i => i.id === itemId);
+
     if (item) {
       setCategories(prev =>
         prev.map(cat =>
@@ -129,19 +145,28 @@ export default function DataImport() {
     setCategories(prev =>
       prev.map(cat =>
         cat.id === categoryId
-          ? { ...cat, groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }] }
+          ? {
+              ...cat,
+              groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }]
+            }
           : cat
       )
     );
   };
 
   const handleNewProject = () => {
-    if (!newProjectName.trim()) return;
-    const newProject = { id: String(Date.now()), name: newProjectName.trim(), status: "active" as const, dataCount: 0 };
-    setProjects(prev => [...prev, newProject]);
-    setNewProjectName("");
-    setIsNewProjectDialogOpen(false);
-    toast.success("项目创建成功");
+    if (newProjectName.trim()) {
+      const newProject = {
+        id: String(Date.now()),
+        name: newProjectName.trim(),
+        status: "active" as const,
+        dataCount: 0
+      };
+      setProjects(prev => [...prev, newProject]);
+      setNewProjectName("");
+      setIsNewProjectDialogOpen(false);
+      toast.success("项目创建成功");
+    }
   };
 
   const handleEditProject = (projectId: string) => {
@@ -154,12 +179,15 @@ export default function DataImport() {
   };
 
   const handleSaveEditProject = () => {
-    if (!editingProjectName.trim() || !editingProjectId) return;
-    setProjects(prev => prev.map(p => (p.id === editingProjectId ? { ...p, name: editingProjectName.trim() } : p)));
-    setEditingProjectId(null);
-    setEditingProjectName("");
-    setIsEditProjectDialogOpen(false);
-    toast.success("项目更新成功");
+    if (editingProjectName.trim() && editingProjectId) {
+      setProjects(prev =>
+        prev.map(p => (p.id === editingProjectId ? { ...p, name: editingProjectName.trim() } : p))
+      );
+      setEditingProjectId(null);
+      setEditingProjectName("");
+      setIsEditProjectDialogOpen(false);
+      toast.success("项目更新成功");
+    }
   };
 
   const handleDeleteProject = (projectId: string) => {
@@ -169,13 +197,6 @@ export default function DataImport() {
       setSelectedProject(remaining[0]?.id || "");
     }
     toast.success("项目已删除");
-  };
-
-  // 核心样式：grid + min-content + nowrap + overflow-x
-  const gridStyle = {
-    gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)`,
-    whiteSpace: "nowrap",
-    overflowX: "auto"
   };
 
   return (
@@ -190,27 +211,50 @@ export default function DataImport() {
               </div>
               <h2 className="text-lg font-semibold">项目管理</h2>
             </div>
-            <Button className="w-full gap-2 hover:scale-105 transition-smooth" onClick={() => setIsNewProjectDialogOpen(true)}>
-              <Plus className="w-4 h-4" /> 新建项目
+            <Button
+              className="w-full gap-2 hover:scale-105 transition-smooth"
+              onClick={() => setIsNewProjectDialogOpen(true)}
+            >
+              <Plus className="w-4 h-4" />
+              新建项目
             </Button>
           </div>
+
           <ScrollArea className="flex-1 p-4">
             <div className="space-y-2">
-              {projects.map(project => (
+              {projects.map((project) => (
                 <div
                   key={project.id}
                   className={`p-4 rounded-lg border cursor-pointer transition-smooth hover:scale-105 ${
-                    selectedProject === project.id ? "bg-primary/10 border-primary/20" : "bg-card border-border hover:bg-muted/30"
+                    selectedProject === project.id
+                      ? "bg-primary/10 border-primary/20"
+                      : "bg-card border-border hover:bg-muted/30"
                   }`}
                   onClick={() => setSelectedProject(project.id)}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium text-sm">{project.name}</h3>
                     <div className="flex gap-1">
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:scale-110 transition-smooth" onClick={(e) => { e.stopPropagation(); handleEditProject(project.id); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:scale-110 transition-smooth"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditProject(project.id);
+                        }}
+                      >
                         <Edit3 className="h-3 w-3" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 hover:scale-110 transition-smooth text-destructive" onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id); }}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 hover:scale-110 transition-smooth text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteProject(project.id);
+                        }}
+                      >
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </div>
@@ -227,7 +271,7 @@ export default function DataImport() {
           </ScrollArea>
         </div>
 
-        {/* 右侧数据导入 */}
+        {/* 右侧数据导入区域 */}
         <div className="flex-1 flex flex-col">
           <div className="p-6 border-b border-border">
             <div className="flex items-center gap-3 mb-4">
@@ -239,41 +283,48 @@ export default function DataImport() {
                 <p className="text-muted-foreground">工艺数据导入与管理</p>
               </div>
             </div>
+
             <div className="flex items-center gap-4">
               <Button className="gap-2 hover:scale-105 transition-smooth">
-                <FileText className="w-4 h-4" /> 选择文件导入
+                <FileText className="w-4 h-4" />
+                选择文件导入
               </Button>
               <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
-                <Save className="w-4 h-4" /> 保存分组
+                <Save className="w-4 h-4" />
+                保存分组
               </Button>
             </div>
           </div>
 
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            {/* 导入数据表 */}
+            {/* 数据行显示 */}
             {dataRows.length > 0 && (
-              <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-x-auto">
+              <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
                 <CardHeader>
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid items-center gap-2 p-2 font-medium bg-primary/10 rounded-lg border border-primary/20" style={{ gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)` }}>
-                    <div className="text-center">序号</div>
-                    {dataHeaders.map((h, i) => <div key={i} className="text-center">{h}</div>)}
-                  </div>
+                  <div className="space-y-2">
+                    {/* 表头 */}
+                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20" style={{ gridTemplateColumns }}>
+                      <div className="text-center font-medium text-sm">序号</div>
+                      {dataHeaders.map((header) => (
+                        <div key={header} className="text-center font-medium text-sm">{header}</div>
+                      ))}
+                    </div>
 
-                  <div className="space-y-2 mt-2">
-                    {dataRows.map((row, idx) => (
+                    {/* 数据行 */}
+                    {dataRows.map((row, rowIndex) => (
                       <div
                         key={row.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                        className="grid items-center gap-2 p-2 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
-                        style={{ gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)`, whiteSpace: "nowrap" }}
+                        className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
+                        style={{ gridTemplateColumns }}
                       >
-                        <div className="text-center">{idx + 1}</div>
-                        {row.data.map((cell, i) => (
-                          <div key={i} className="text-center">{cell}</div>
+                        <div className="text-center">{rowIndex + 1}</div>
+                        {row.data.map((cell, index) => (
+                          <div key={index} className="text-left">{cell}</div>
                         ))}
                       </div>
                     ))}
@@ -284,42 +335,53 @@ export default function DataImport() {
 
             {/* 分组区域 */}
             <div className="space-y-6">
-              {categories.map(category => (
-                <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-x-auto">
+              {categories.map((category) => (
+                <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid items-center gap-2 p-2 font-medium bg-primary/10 rounded-lg border border-primary/20 mb-4" style={{ gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)` }}>
-                      <div className="text-center">序号</div>
-                      {dataHeaders.map((h, i) => <div key={i} className="text-center">{h}</div>)}
+                    {/* 表头 */}
+                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4" style={{ gridTemplateColumns }}>
+                      <div className="text-center font-medium text-sm">序号</div>
+                      {dataHeaders.map((header) => (
+                        <div key={header} className="text-center font-medium text-sm">{header}</div>
+                      ))}
                     </div>
 
                     <div className="space-y-4">
-                      {category.groups.map((group, gIdx) => (
+                      {category.groups.map((group, groupIndex) => (
                         <div
                           key={group.id}
                           onDrop={(e) => handleDrop(e, category.id, group.id)}
                           onDragOver={handleDragOver}
-                          className="grid gap-2 p-2 border-2 border-dashed border-border/50 rounded-lg min-h-32"
-                          style={{ gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)`, whiteSpace: "nowrap" }}
+                          className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2 min-h-32"
                         >
-                          {category.hasGroups && <div className="text-sm font-medium text-muted-foreground col-span-full mb-2">组 {gIdx + 1}</div>}
+                          {category.hasGroups && (
+                            <div className="text-sm font-medium text-muted-foreground mb-2">
+                              组 {groupIndex + 1}
+                            </div>
+                          )}
 
                           {group.items.length === 0 ? (
-                            <div className="col-span-full text-center text-muted-foreground py-8">拖拽数据到此处进行分组</div>
+                            <div
+                              className="grid items-center justify-center text-muted-foreground text-sm py-8"
+                              style={{ gridTemplateColumns }}
+                            >
+                              <div className="col-span-8 text-center">拖拽数据到此处进行分组</div>
+                            </div>
                           ) : (
-                            group.items.map((item, idx) => (
+                            group.items.map((item, itemIndex) => (
                               <div
                                 key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                className="grid items-center gap-2 p-2 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 relative"
-                                style={{ gridTemplateColumns: `50px repeat(${dataHeaders.length}, min-content)`, whiteSpace: "nowrap" }}
+                                className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
+                                style={{ gridTemplateColumns }}
                               >
-                                <div className="text-center">{idx + 1}</div>
-                                {item.data.map((cell, i) => (
-                                  <div key={i} className="text-center">{cell}</div>
+                                <div className="text-center">{itemIndex + 1}</div>
+                                {item.data.map((cell, index) => (
+                                  <div key={index} className="text-left">{cell}</div>
                                 ))}
                                 <Button
                                   variant="ghost"
@@ -355,7 +417,55 @@ export default function DataImport() {
         </div>
       </div>
 
-      {/* 新建项目对话框 & 编辑项目对话框 略，保持原逻辑不变 */}
+      {/* 新建项目对话框 */}
+      <Dialog open={isNewProjectDialogOpen} onOpenChange={setIsNewProjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新建项目</DialogTitle>
+            <DialogDescription>创建一个新的工艺项目</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">项目名称</label>
+              <Input
+                placeholder="请输入项目名称"
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleNewProject(); }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsNewProjectDialogOpen(false)}>取消</Button>
+            <Button onClick={handleNewProject}>创建</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 编辑项目对话框 */}
+      <Dialog open={isEditProjectDialogOpen} onOpenChange={setIsEditProjectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>编辑项目</DialogTitle>
+            <DialogDescription>修改项目信息</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">项目名称</label>
+              <Input
+                placeholder="请输入项目名称"
+                value={editingProjectName}
+                onChange={(e) => setEditingProjectName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEditProject(); }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditProjectDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSaveEditProject}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
