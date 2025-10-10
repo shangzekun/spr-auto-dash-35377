@@ -14,13 +14,13 @@ const mockProjects = [
   { id: "3", name: "Dom G1.6", status: "inactive", dataCount: 234 }
 ];
 
-const dataHeaders = ["Material 1", "Material 2", "Material 3", "Gauge 1", "Gauge 2", "Gauge 3", "Rivet", "Die"];
+const dataHeaders = ["Material 1", "Material 2", "Material 3", "Material 4", "Gauge 1", "Gauge 2", "Gauge 3", "Gauge 4", "Rivet", "Die"];
 
 const mockDataRows = [
-  { id: "1", data: ["LAC340Y410T", "6000-BR", "", "1.2", "1.5", "", "C5.3x5.0H2", "M260238"] },
-  { id: "2", data: ["6000-BR", "6000-BR", "", "2.0", "2.5", "", "C5.3x6.0H2", "M260468"] },
-  { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "1.8", "3.0", "", "HSS5.5x6.0H5", "M260406"] },
-  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "1.5", "1.2", "3.0", "C5.3x7.0H4", "M260412"] }
+  { id: "1", data: ["LAC340Y410T", "6000-BR", "", "", "1.2", "1.5", "", "", "C5.3x5.0H2", "M260238"] },
+  { id: "2", data: ["6000-BR", "6000-BR", "", "", "2.0", "2.5", "", "", "C5.3x6.0H2", "M260468"] },
+  { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "", "1.8", "3.0", "", "", "HSS5.5x6.0H5", "M260406"] },
+  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "", "1.5", "1.2", "3.0", "", "C5.3x7.0H4", "M260412"] }
 ];
 
 type CategoryGroup = {
@@ -307,36 +307,33 @@ export default function DataImport() {
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-auto">
-                    <table className="table-auto border-collapse w-full">
-                      <thead>
-                        <tr className="bg-primary/10">
-                          <th className="border px-2 py-1 w-12 text-center">序号</th>
-                          {dataHeaders.map((header, index) => (
-                            <th key={index} className="border px-2 py-1 text-left">
-                              {header}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dataRows.map((row, rowIndex) => (
-                          <tr
-                            key={row.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                            className="hover:bg-muted/30 cursor-move transition-smooth"
-                          >
-                            <td className="border px-2 py-1 text-center">{rowIndex + 1}</td>
-                            {row.data.map((cell, index) => (
-                              <td key={index} className="border px-2 py-1 text-left">
-                                {cell}
-                              </td>
-                            ))}
-                          </tr>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
+                      {dataHeaders.map((header, index) => (
+                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center flex-shrink-0">
+                          {header}
+                        </div>
+                      ))}
+                    </div>
+
+                    {dataRows.map((row, rowIndex) => (
+                      <div
+                        key={row.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
+                        className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
+                      >
+                        <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
+                          {rowIndex + 1}
+                        </div>
+                        {row.data.map((cell, index) => (
+                          <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center flex-shrink-0">
+                            {cell}
+                          </div>
                         ))}
-                      </tbody>
-                    </table>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>
