@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MultiSelect, MultiSelectOption } from "@/components/ui/multi-select";
 
 const moduleConfigs: Record<string, any> = {
   "database-query": {
@@ -128,11 +129,51 @@ export default function Modules() {
   const [showResults, setShowResults] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // 模拟数据选项 - 实际应用中从后端获取
+  const materialOptions: MultiSelectOption[] = [
+    { label: "LAC340Y410T", value: "LAC340Y410T" },
+    { label: "6000-BR", value: "6000-BR" },
+    { label: "DPC420Y780T", value: "DPC420Y780T" },
+    { label: "DC-N2 F", value: "DC-N2 F" },
+  ];
+
+  const gaugeOptions: MultiSelectOption[] = [
+    { label: "1.2mm", value: "1.2" },
+    { label: "1.5mm", value: "1.5" },
+    { label: "1.8mm", value: "1.8" },
+    { label: "2.0mm", value: "2.0" },
+    { label: "3.0mm", value: "3.0" },
+  ];
+
+  const rivetOptions: MultiSelectOption[] = [
+    { label: "C5.3x5.0H2", value: "C5.3x5.0H2" },
+    { label: "C5.3x6.0H2", value: "C5.3x6.0H2" },
+    { label: "C5.3x7.0H4", value: "C5.3x7.0H4" },
+    { label: "HSS5.5x6.0H5", value: "HSS5.5x6.0H5" },
+  ];
+
+  const dieOptions: MultiSelectOption[] = [
+    { label: "M260238", value: "M260238" },
+    { label: "M260468", value: "M260468" },
+    { label: "M260406", value: "M260406" },
+    { label: "M260412", value: "M260412" },
+  ];
+
+  // 根据输入键获取对应的选项
+  const getOptionsForInput = (inputKey: string): MultiSelectOption[] => {
+    if (inputKey.includes("材料")) return materialOptions;
+    if (inputKey.includes("厚度")) return gaugeOptions;
+    if (inputKey === "铆钉型号") return rivetOptions;
+    if (inputKey === "铆模型号") return dieOptions;
+    return [];
+  };
+
   // 初始化表单数据
   useEffect(() => {
-    const initialData = {};
-    modules[selectedModule].dataInputs.forEach(inputKey => {
-      initialData[inputKey] = "";
+    const initialData: Record<string, string | string[]> = {};
+    modules[selectedModule].dataInputs.forEach((inputKey: string) => {
+      // 数据库查询模块使用数组，其他模块使用字符串
+      initialData[inputKey] = selectedModule === "database-query" ? [] : "";
     });
     setFormData(initialData);
     setShowResults(false);
@@ -529,30 +570,13 @@ export default function Modules() {
                           {inputKey}
                         </Label>
                         {selectedModule === "database-query" ? (
-                          <Select
-                            value={Array.isArray(formData[inputKey]) ? "" : (formData[inputKey] as string || "")}
-                            onValueChange={(value) => {
-                              const currentValues = Array.isArray(formData[inputKey]) ? formData[inputKey] : [];
-                              if (currentValues.includes(value)) {
-                                handleInputChange(inputKey, currentValues.filter(v => v !== value));
-                              } else {
-                                handleInputChange(inputKey, [...currentValues, value]);
-                              }
-                            }}
-                          >
-                            <SelectTrigger disabled={modules[selectedModule].status === "disabled"}>
-                              <SelectValue placeholder={`选择${inputKey}`}>
-                                {Array.isArray(formData[inputKey]) && formData[inputKey].length > 0
-                                  ? `已选${formData[inputKey].length}项`
-                                  : `选择${inputKey}`}
-                              </SelectValue>
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="示例值1">示例值1</SelectItem>
-                              <SelectItem value="示例值2">示例值2</SelectItem>
-                              <SelectItem value="示例值3">示例值3</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <MultiSelect
+                            options={getOptionsForInput(inputKey)}
+                            selected={(formData[inputKey] as string[]) || []}
+                            onChange={(selected) => handleInputChange(inputKey, selected)}
+                            placeholder={`选择${inputKey}`}
+                            disabled={modules[selectedModule].status === "disabled"}
+                          />
                         ) : (
                           <Input
                             id={`input-${index}`}
