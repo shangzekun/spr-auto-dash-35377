@@ -14,13 +14,13 @@ const mockProjects = [
   { id: "3", name: "Dom G1.6", status: "inactive", dataCount: 234 }
 ];
 
-const dataHeaders = ["Material 1", "Material 2", "Material 3", "Material 4", "Gauge 1", "Gauge 2", "Gauge 3", "Gauge 4", "Rivet", "Die"];
+const dataHeaders = ["Material 1", "Material 2", "Material 3", "Gauge 1", "Gauge 2", "Gauge 3", "Rivet", "Die"];
 
 const mockDataRows = [
-  { id: "1", data: ["LAC340Y410T", "6000-BR", "", "", "1.2", "1.5", "", "", "C5.3x5.0H2", "M260238"] },
-  { id: "2", data: ["6000-BR", "6000-BR", "", "", "2.0", "2.0", "", "", "C5.3x6.0H2", "M260468"] },
-  { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "", "1.8", "3.0", "", "", "HSS5.5x6.0H5", "M260406"] },
-  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "", "1.5", "1.2", "3.0", "", "C5.3x7.0H4", "M260412"] }
+  { id: "1", data: ["LAC340Y410T", "6000-BR", "",  "1.2", "1.5","", "C5.3x5.0H2", "M260238"] },
+  { id: "2", data: ["6000-BR", "6000-BR", "",  "2.0", "2.0", "", "C5.3x6.0H2", "M260468"] },
+  { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "1.8", "3.0", "", "HSS5.5x6.0H5", "M260406"] },
+  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "1.5", "1.2", "3.0", "C5.3x7.0H4", "M260412"] }
 ];
 
 type CategoryGroup = {
