@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -42,13 +42,13 @@ export default function DataImport() {
   const [draggedItem, setDraggedItem] = useState<{ id: string; data: string[]; source: string; groupId?: string } | null>(null);
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
-  const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false); // 删除组对话框
+  const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
-  // 存储待删除的组信息
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
+  const mainContentRef = useRef<HTMLDivElement>(null); // 主内容区域引用
 
   /** 拖拽开始 */
   const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string, groupId?: string) => {
@@ -56,6 +56,8 @@ export default function DataImport() {
     setIsDragging(true);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", rowId);
+    // 拖拽开始时聚焦主内容区，确保滚轮事件能被捕获
+    mainContentRef.current?.focus();
   };
 
   /** 拖拽结束 */
@@ -146,7 +148,6 @@ export default function DataImport() {
       )
     );
 
-    // 3. 关闭对话框并清空信息
     setIsDeleteGroupDialogOpen(false);
     setDeleteGroupInfo(null);
     toast.success("分组删除成功");
@@ -237,11 +238,12 @@ export default function DataImport() {
     toast.success("项目已删除");
   };
 
-  /** 拖拽时页面滚动处理 */
+  /** 拖拽时滚动处理（同时支持鼠标边缘滚动和滚轮滚动） */
   useEffect(() => {
     if (!isDragging) return;
 
-    const handleScrollOnDrag = (e: MouseEvent) => {
+    // 鼠标边缘自动滚动
+    const handleMouseMove = (e: MouseEvent) => {
       const scrollSpeed = 8;
       const edgeThreshold = 80;
       const windowHeight = window.innerHeight;
@@ -254,15 +256,27 @@ export default function DataImport() {
       }
     };
 
-    document.addEventListener("mousemove", handleScrollOnDrag);
+    // 滚轮滚动处理（核心修复）
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault(); // 阻止默认行为，避免冲突
+      const scrollAmount = e.deltaY > 0 ? 20 : -20; // 根据滚轮方向设置滚动量
+      window.scrollBy(0, scrollAmount);
+    };
+
+    // 绑定事件
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("wheel", handleWheel, { passive: false }); // 必须设置passive: false才能阻止默认行为
+
+    // 清理事件
     return () => {
-      document.removeEventListener("mousemove", handleScrollOnDrag);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("wheel", handleWheel);
     };
   }, [isDragging]);
 
   return (
     <>
-      <div className="flex h-full">
+      <div className="flex h-full" ref={mainContentRef} tabIndex={-1}>
         {/* 左侧项目管理 */}
         <div className="w-80 border-r border-border bg-card">
           <div className="p-6 border-b border-border">
@@ -350,52 +364,69 @@ export default function DataImport() {
           </div>
 
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            {/* 1. 导入数据（还原表头样式+隐藏边框+横向滚动） */}
+            {/* 1. 导入数据（Table结构+列对齐） */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
                 <CardHeader>
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
-                  {/* 外层容器：横向滚动+不拉伸+列宽自适应 */}
+                  {/* 横向滚动容器 */}
                   <div className="overflow-x-auto w-fit">
-                    {/* 表头：还原原div flex样式 */}
-                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 whitespace-nowrap">
-                      <div className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[50px]">序号</div>
-                      {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[max-content]">
-                          {header}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* 数据行：隐藏表格边框+列宽自适应 */}
-                    <div className="space-y-3 mt-2">
-                      {dataRows.map((row, rowIndex) => (
-                        <div
-                          key={row.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                          onDragEnd={handleDragEnd}
-                          className="flex items-center gap-2 p-3 rounded-lg border-0 cursor-move hover:bg-primary/5 transition-all duration-200 whitespace-nowrap"
-                        >
-                          <div className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[50px]">
-                            {rowIndex + 1}
-                          </div>
-                          {row.data.map((cell, index) => (
-                            <div key={index} className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[max-content]">
-                              {cell}
-                            </div>
+                    {/* Table结构：列对齐核心 */}
+                    <table className="border-collapse">
+                      <thead>
+                        <tr>
+                          {/* 表头行：与数据行严格对齐 */}
+                          <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg border border-primary/20 min-w-[50px]">
+                            序号
+                          </th>
+                          {dataHeaders.map((header, index) => (
+                            <th
+                              key={index}
+                              className={`p-3 bg-primary/10 text-center font-medium text-sm border-y border-primary/20 ${
+                                index === dataHeaders.length - 1 ? "rounded-r-lg" : ""
+                              } min-w-[max-content]`}
+                            >
+                              {header}
+                            </th>
                           ))}
-                        </div>
-                      ))}
-                    </div>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dataRows.map((row, rowIndex) => (
+                          <tr
+                            key={row.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
+                            onDragEnd={handleDragEnd}
+                            className="cursor-move hover:bg-primary/5 transition-all duration-200"
+                          >
+                            {/* 序号列 */}
+                            <td className="p-3 text-center text-sm border border-border/20 bg-background min-w-[50px]">
+                              {rowIndex + 1}
+                            </td>
+                            {/* 数据列：与表头一一对应 */}
+                            {row.data.map((cell, index) => (
+                              <td
+                                key={index}
+                                className={`p-3 text-center text-sm border-y border-r border-border/20 bg-background ${
+                                  index === row.data.length - 1 ? "border-r-0" : ""
+                                } min-w-[max-content]`}
+                              >
+                                {cell}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* 2. 分类分组（独立标题行+同导入区样式） */}
+            {/* 2. 分类分组（Table结构+列对齐） */}
             <div className="space-y-6">
               {categories.map(category => (
                 <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
@@ -403,21 +434,33 @@ export default function DataImport() {
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
-                    {/* 分类独立标题行（同导入区表头样式） */}
+                    {/* 横向滚动容器 */}
                     <div className="overflow-x-auto w-fit">
-                      <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 whitespace-nowrap">
-                        <div className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[50px]">序号</div>
-                        {dataHeaders.map((header, index) => (
-                          <div key={index} className="px-4 py-2 font-medium text-sm text-center flex-shrink-0 min-w-[max-content]">
-                            {header}
-                          </div>
-                        ))}
-                        {/* 单行删除列占位（与数据行对齐） */}
-                        <div className="px-2 py-2 flex-shrink-0 min-w-[40px]"></div>
-                      </div>
+                      {/* 分类标题行（Table表头样式） */}
+                      <table className="border-collapse mb-4">
+                        <thead>
+                          <tr>
+                            <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg border border-primary/20 min-w-[50px]">
+                              序号
+                            </th>
+                            {dataHeaders.map((header, index) => (
+                              <th
+                                key={index}
+                                className="p-3 bg-primary/10 text-center font-medium text-sm border-y border-primary/20 min-w-[max-content]"
+                              >
+                                {header}
+                              </th>
+                            ))}
+                            {/* 操作列 */}
+                            <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg border border-primary/20 min-w-[40px]">
+                              &nbsp;
+                            </th>
+                          </tr>
+                        </thead>
+                      </table>
 
                       {/* 分组列表 */}
-                      <div className="space-y-4 mt-4">
+                      <div className="space-y-4">
                         {category.groups.map((group, groupIndex) => (
                           <div
                             key={group.id}
@@ -425,7 +468,7 @@ export default function DataImport() {
                             onDragOver={handleDragOver}
                             className="border-2 border-dashed border-border/50 rounded-lg p-4 min-h-32"
                           >
-                            {/* 组删除按钮（右上角） */}
+                            {/* 组删除按钮 */}
                             {category.hasGroups && (
                               <div className="flex justify-end mb-3">
                                 <Button
@@ -439,43 +482,50 @@ export default function DataImport() {
                               </div>
                             )}
 
-                            {/* 组内数据（隐藏边框+横向滚动） */}
+                            {/* 组内数据（Table结构） */}
                             {group.items.length === 0 ? (
                               <p className="text-muted-foreground text-sm text-center py-8">
                                 拖拽数据到此处进行分组
                               </p>
                             ) : (
-                              <div className="space-y-3">
-                                {group.items.map((item, itemIndex) => (
-                                  <div
-                                    key={item.id}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                    onDragEnd={handleDragEnd}
-                                    className="flex items-center gap-2 p-3 rounded-lg border-0 cursor-move hover:bg-primary/5 transition-all duration-200 whitespace-nowrap relative group"
-                                  >
-                                    <div className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[50px]">
-                                      {itemIndex + 1}
-                                    </div>
-                                    {item.data.map((cell, index) => (
-                                      <div key={index} className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[max-content]">
-                                        {cell}
-                                      </div>
-                                    ))}
-                                    {/* 单行删除按钮 */}
-                                    <div className="px-2 py-2 flex-shrink-0 min-w-[40px]">
-                                      <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-smooth bg-destructive/10 hover:bg-destructive/20"
-                                        onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
-                                      >
-                                        <X className="h-3 w-3 text-destructive" />
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                              <table className="border-collapse">
+                                <tbody>
+                                  {group.items.map((item, itemIndex) => (
+                                    <tr
+                                      key={item.id}
+                                      draggable
+                                      onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
+                                      onDragEnd={handleDragEnd}
+                                      className="cursor-move hover:bg-primary/5 transition-all duration-200"
+                                    >
+                                      {/* 序号列 */}
+                                      <td className="p-3 text-center text-sm border border-border/20 bg-background min-w-[50px]">
+                                        {itemIndex + 1}
+                                      </td>
+                                      {/* 数据列 */}
+                                      {item.data.map((cell, index) => (
+                                        <td
+                                          key={index}
+                                          className="p-3 text-center text-sm border-y border-r border-border/20 bg-background min-w-[max-content]"
+                                        >
+                                          {cell}
+                                        </td>
+                                      ))}
+                                      {/* 操作列 */}
+                                      <td className="p-3 text-center border border-border/20 bg-background min-w-[40px]">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
+                                          onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
+                                        >
+                                          <X className="h-3 w-3" />
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
                             )}
                           </div>
                         ))}
@@ -552,7 +602,7 @@ export default function DataImport() {
         </DialogContent>
       </Dialog>
 
-      {/* 3. 删除组对话框（同新建项目样式） */}
+      {/* 删除组对话框 */}
       <Dialog open={isDeleteGroupDialogOpen} onOpenChange={setIsDeleteGroupDialogOpen}>
         <DialogContent>
           <DialogHeader>
