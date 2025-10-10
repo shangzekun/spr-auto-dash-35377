@@ -315,7 +315,7 @@ export default function DataImport() {
                         key={row.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                        className="flex items-center gap-2 p-3 bg-white rounded-lg border border-border/20 cursor-move hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 hover:shadow-sm whitespace-nowrap"
+                        className="flex items-center gap-2 p-3 rounded-lg border border-border/20 cursor-move hover:bg-primary/5 hover:border-primary/30 transition-all duration-200 hover:shadow-sm whitespace-nowrap"
                       >
                         <div className="px-4 py-2 bg-background rounded border text-sm text-center flex-shrink-0 min-w-[50px]">
                           {rowIndex + 1}
