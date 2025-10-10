@@ -34,6 +34,8 @@ const categoryHeaders = [
   { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true }
 ];
 
+// CSS Grid列宽模板
+const gridTemplateColumns = "80px 120px 120px 80px 80px 80px 100px 100px";
 
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
@@ -56,9 +58,6 @@ export default function DataImport() {
     e.preventDefault();
     if (!draggedItem) return;
 
-    // 默认推荐模块：只更新 UI，不删除 dataRows
-
-    // 其他模块保持原来的 1008 逻辑
     setCategories(prev =>
       prev.map(cat => {
         if (cat.id === categoryId) {
@@ -79,8 +78,6 @@ export default function DataImport() {
             };
           }
         }
-
-        // 从原位置移除
         if (cat.hasGroups) {
           return {
             ...cat,
@@ -113,14 +110,14 @@ export default function DataImport() {
   };
 
   const handleDeleteGroup = (categoryId: string, groupId: string) => {
-  setCategories(prev =>
-    prev.map(cat =>
-      cat.id === categoryId
-        ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) } // 删除该分组
-        : cat
-    )
-  );
-};
+    setCategories(prev =>
+      prev.map(cat =>
+        cat.id === categoryId
+          ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) }
+          : cat
+      )
+    );
+  };
 
   const handleRemoveFromCategory = (categoryId: string, groupId: string, itemId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
@@ -308,29 +305,26 @@ export default function DataImport() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
-                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
-                      {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm text-left flex-shrink-0">
-                          {header}
-                        </div>
+                    {/* 表头 */}
+                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20" style={{ gridTemplateColumns }}>
+                      <div className="text-center font-medium text-sm">序号</div>
+                      {dataHeaders.map((header) => (
+                        <div key={header} className="text-center font-medium text-sm">{header}</div>
                       ))}
                     </div>
-                    
+
+                    {/* 数据行 */}
                     {dataRows.map((row, rowIndex) => (
                       <div
                         key={row.id}
                         draggable
                         onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                        className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
+                        className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
+                        style={{ gridTemplateColumns }}
                       >
-                        <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
-                          {rowIndex + 1}
-                        </div>
+                        <div className="text-center">{rowIndex + 1}</div>
                         {row.data.map((cell, index) => (
-                          <div key={index} className="px-2 py-1 bg-background rounded border text-sm text-left flex-shrink-0">
-                            {cell}
-                          </div>
+                          <div key={index} className="text-left">{cell}</div>
                         ))}
                       </div>
                     ))}
@@ -347,12 +341,11 @@ export default function DataImport() {
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4">
-                      <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
-                      {dataHeaders.map((header, index) => (
-                        <div key={index} className="px-2 py-1 font-medium text-sm min-w-20 text-center flex-shrink-0">
-                          {header}
-                        </div>
+                    {/* 表头 */}
+                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4" style={{ gridTemplateColumns }}>
+                      <div className="text-center font-medium text-sm">序号</div>
+                      {dataHeaders.map((header) => (
+                        <div key={header} className="text-center font-medium text-sm">{header}</div>
                       ))}
                     </div>
 
@@ -365,32 +358,30 @@ export default function DataImport() {
                           className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2 min-h-32"
                         >
                           {category.hasGroups && (
-                            <>
-                              <div className="text-sm font-medium text-muted-foreground mb-2">
-                                组 {groupIndex + 1}
-                              </div>
-                            </>
+                            <div className="text-sm font-medium text-muted-foreground mb-2">
+                              组 {groupIndex + 1}
+                            </div>
                           )}
 
                           {group.items.length === 0 ? (
-                            <p className="text-muted-foreground text-sm text-center py-8">
-                              拖拽数据到此处进行分组
-                            </p>
+                            <div
+                              className="grid items-center justify-center text-muted-foreground text-sm py-8"
+                              style={{ gridTemplateColumns }}
+                            >
+                              <div className="col-span-8 text-center">拖拽数据到此处进行分组</div>
+                            </div>
                           ) : (
                             group.items.map((item, itemIndex) => (
                               <div
                                 key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
+                                className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
+                                style={{ gridTemplateColumns }}
                               >
-                                <div className="px-2 py-1 bg-background rounded border text-sm w-12 text-center flex-shrink-0">
-                                  {itemIndex + 1}
-                                </div>
+                                <div className="text-center">{itemIndex + 1}</div>
                                 {item.data.map((cell, index) => (
-                                  <div key={index} className="px-2 py-1 bg-background rounded border text-sm min-w-20 text-center flex-shrink-0">
-                                    {cell}
-                                  </div>
+                                  <div key={index} className="text-left">{cell}</div>
                                 ))}
                                 <Button
                                   variant="ghost"
@@ -440,21 +431,13 @@ export default function DataImport() {
                 placeholder="请输入项目名称"
                 value={newProjectName}
                 onChange={(e) => setNewProjectName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleNewProject();
-                  }
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleNewProject(); }}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsNewProjectDialogOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleNewProject}>
-              创建
-            </Button>
+            <Button variant="outline" onClick={() => setIsNewProjectDialogOpen(false)}>取消</Button>
+            <Button onClick={handleNewProject}>创建</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -473,21 +456,13 @@ export default function DataImport() {
                 placeholder="请输入项目名称"
                 value={editingProjectName}
                 onChange={(e) => setEditingProjectName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSaveEditProject();
-                  }
-                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleSaveEditProject(); }}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditProjectDialogOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleSaveEditProject}>
-              保存
-            </Button>
+            <Button variant="outline" onClick={() => setIsEditProjectDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSaveEditProject}>保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
