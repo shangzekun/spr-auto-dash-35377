@@ -4,24 +4,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 const mockProjects = [
-  { id: "1", name: "电池包项目A", status: "active", dataCount: 1247 },
-  { id: "2", name: "车身连接项目B", status: "active", dataCount: 856 },
-  { id: "3", name: "测试项目C", status: "inactive", dataCount: 234 }
+  { id: "1", name: "Qinling", status: "active", dataCount: 1247 },
+  { id: "2", name: "Pisces", status: "active", dataCount: 856 },
+  { id: "3", name: "Dom G1.6", status: "inactive", dataCount: 234 }
 ];
 
 const dataHeaders = ["Material 1", "Material 2", "Material 3", "Material 4", "Gauge 1", "Gauge 2", "Gauge 3", "Gauge 4", "Rivet", "Die"];
 
 const mockDataRows = [
-  { id: "1", data: ["Steel", "Aluminum", "Steel", "Aluminum", "1.2mm", "1.5mm", "1.8mm", "2.0mm", "R001", "D001"] },
-  { id: "2", data: ["Aluminum", "Aluminum", "Steel", "Steel", "1.5mm", "1.5mm", "2.0mm", "2.0mm", "R002", "D002"] },
-  { id: "3", data: ["Steel", "Steel", "Aluminum", "Aluminum", "1.0mm", "1.2mm", "1.5mm", "1.8mm", "R003", "D003"] },
-  { id: "4", data: ["Carbon", "Steel", "Aluminum", "Carbon", "1.5mm", "1.8mm", "2.0mm", "2.2mm", "R004", "D004"] }
+  { id: "1", data: ["LAC340Y410T", "6000-BR", "", "", "1.2", "1.5", "", "", "C5.3x5.0H2", "M260238"] },
+  { id: "2", data: ["6000-BR", "6000-BR", "", "", "2.0", "2.0", "", "", "C5.3x6.0H2", "M260468"] },
+  { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "", "1.8", "3.0", "", "", "HSS5.5x6.0H5", "M260406"] },
+  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "", "1.5", "1.2", "3.0", "", "C5.3x7.0H4", "M260412"] }
 ];
 
 type CategoryGroup = {
@@ -30,10 +29,11 @@ type CategoryGroup = {
 };
 
 const categoryHeaders = [
-  { id: "recommended", title: "默认推荐", groups: [] as CategoryGroup[], hasGroups: false },
-  { id: "double-pin", title: "双钉共模", groups: [{ id: "group-1", items: [] }] as CategoryGroup[], hasGroups: true },
-  { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }] as CategoryGroup[], hasGroups: true }
+  { id: "recommended", title: "默认推荐", groups: [{ id: "default", items: [] }], hasGroups: false },
+  { id: "double-pin", title: "双钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true },
+  { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true }
 ];
+
 
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
@@ -56,52 +56,55 @@ export default function DataImport() {
     e.preventDefault();
     if (!draggedItem) return;
 
-    setCategories(prev => prev.map(cat => {
-      if (cat.id === categoryId) {
-        if (cat.hasGroups && groupId) {
-          // 添加到分组
+    // 默认推荐模块：只更新 UI，不删除 dataRows
+
+    // 其他模块保持原来的 1008 逻辑
+    setCategories(prev =>
+      prev.map(cat => {
+        if (cat.id === categoryId) {
+          if (cat.hasGroups && groupId) {
+            return {
+              ...cat,
+              groups: cat.groups.map(g =>
+                g.id === groupId
+                  ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
+                  : g
+              )
+            };
+          } else if (!cat.hasGroups) {
+            const currentItems = cat.groups[0]?.items || [];
+            return {
+              ...cat,
+              groups: [{ id: "default", items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] }]
+            };
+          }
+        }
+
+        // 从原位置移除
+        if (cat.hasGroups) {
           return {
             ...cat,
-            groups: cat.groups.map(g => 
-              g.id === groupId 
-                ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
-                : g
-            )
+            groups: cat.groups.map(g => ({
+              ...g,
+              items: g.items.filter(item => item.id !== draggedItem.id)
+            }))
           };
-        } else if (!cat.hasGroups) {
-          // 添加到默认推荐（无分组）
-          const currentItems = cat.groups[0]?.items || [];
+        } else {
           return {
             ...cat,
-            groups: [{ id: "default", items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] }]
+            groups: cat.groups.map(g => ({
+              ...g,
+              items: g.items.filter(item => item.id !== draggedItem.id)
+            }))
           };
         }
-      }
-      
-      // 从原位置移除
-      if (cat.hasGroups) {
-        return {
-          ...cat,
-          groups: cat.groups.map(g => ({
-            ...g,
-            items: g.items.filter(item => item.id !== draggedItem.id)
-          }))
-        };
-      } else {
-        return {
-          ...cat,
-          groups: cat.groups.map(g => ({
-            ...g,
-            items: g.items.filter(item => item.id !== draggedItem.id)
-          }))
-        };
-      }
-    }));
+      })
+    );
 
     if (draggedItem.source === "dataRows") {
       setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
     }
-    
+
     setDraggedItem(null);
   };
 
@@ -109,37 +112,49 @@ export default function DataImport() {
     e.preventDefault();
   };
 
+  const handleDeleteGroup = (categoryId: string, groupId: string) => {
+  setCategories(prev =>
+    prev.map(cat =>
+      cat.id === categoryId
+        ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) } // 删除该分组
+        : cat
+    )
+  );
+};
+
   const handleRemoveFromCategory = (categoryId: string, groupId: string, itemId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
     const item = group?.items.find(i => i.id === itemId);
-    
+
     if (item) {
-      setCategories(prev => prev.map(cat => 
-        cat.id === categoryId 
-          ? {
-              ...cat,
-              groups: cat.groups.map(g =>
-                g.id === groupId
-                  ? { ...g, items: g.items.filter(i => i.id !== itemId) }
-                  : g
-              )
-            }
-          : cat
-      ));
+      setCategories(prev =>
+        prev.map(cat =>
+          cat.id === categoryId
+            ? {
+                ...cat,
+                groups: cat.groups.map(g =>
+                  g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g
+                )
+              }
+            : cat
+        )
+      );
       setDataRows(prev => [...prev, item]);
     }
   };
 
   const handleAddGroup = (categoryId: string) => {
-    setCategories(prev => prev.map(cat =>
-      cat.id === categoryId
-        ? {
-            ...cat,
-            groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }]
-          }
-        : cat
-    ));
+    setCategories(prev =>
+      prev.map(cat =>
+        cat.id === categoryId
+          ? {
+              ...cat,
+              groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }]
+            }
+          : cat
+      )
+    );
   };
 
   const handleNewProject = () => {
@@ -168,11 +183,9 @@ export default function DataImport() {
 
   const handleSaveEditProject = () => {
     if (editingProjectName.trim() && editingProjectId) {
-      setProjects(prev => prev.map(p => 
-        p.id === editingProjectId 
-          ? { ...p, name: editingProjectName.trim() }
-          : p
-      ));
+      setProjects(prev =>
+        prev.map(p => (p.id === editingProjectId ? { ...p, name: editingProjectName.trim() } : p))
+      );
       setEditingProjectId(null);
       setEditingProjectName("");
       setIsEditProjectDialogOpen(false);
@@ -201,7 +214,7 @@ export default function DataImport() {
               </div>
               <h2 className="text-lg font-semibold">项目管理</h2>
             </div>
-            <Button 
+            <Button
               className="w-full gap-2 hover:scale-105 transition-smooth"
               onClick={() => setIsNewProjectDialogOpen(true)}
             >
@@ -225,9 +238,9 @@ export default function DataImport() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-medium text-sm">{project.name}</h3>
                     <div className="flex gap-1">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-6 w-6 p-0 hover:scale-110 transition-smooth"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -236,9 +249,9 @@ export default function DataImport() {
                       >
                         <Edit3 className="h-3 w-3" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         className="h-6 w-6 p-0 hover:scale-110 transition-smooth text-destructive"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -295,7 +308,6 @@ export default function DataImport() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {/* 标题行 */}
                     <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
                       <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
                       {dataHeaders.map((header, index) => (
@@ -304,7 +316,7 @@ export default function DataImport() {
                         </div>
                       ))}
                     </div>
-                    
+
                     {dataRows.map((row, rowIndex) => (
                       <div
                         key={row.id}
@@ -327,18 +339,14 @@ export default function DataImport() {
               </Card>
             )}
 
-            {/* 分组区域 - 纵向显示 */}
+            {/* 分组区域 */}
             <div className="space-y-6">
               {categories.map((category) => (
-                <Card
-                  key={category.id}
-                  className="border-border/50 shadow-card hover:shadow-elegant transition-smooth"
-                >
+                <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {/* 标题行 */}
                     <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4">
                       <div className="px-2 py-1 font-medium text-sm w-12 text-center flex-shrink-0">序号</div>
                       {dataHeaders.map((header, index) => (
@@ -347,30 +355,31 @@ export default function DataImport() {
                         </div>
                       ))}
                     </div>
-                    
-                    {/* 分组显示 */}
+
                     <div className="space-y-4">
                       {category.groups.map((group, groupIndex) => (
-                        <div 
+                        <div
                           key={group.id}
                           onDrop={(e) => handleDrop(e, category.id, group.id)}
                           onDragOver={handleDragOver}
                           className="border-2 border-dashed border-border/50 rounded-lg p-4 space-y-2 min-h-32"
                         >
                           {category.hasGroups && (
-                            <div className="text-sm font-medium text-muted-foreground mb-2">
-                              组 {groupIndex + 1}
-                            </div>
+                            <>
+                              <div className="text-sm font-medium text-muted-foreground mb-2">
+                                组 {groupIndex + 1}
+                              </div>
+                            </>
                           )}
-                          
+
                           {group.items.length === 0 ? (
                             <p className="text-muted-foreground text-sm text-center py-8">
                               拖拽数据到此处进行分组
                             </p>
                           ) : (
                             group.items.map((item, itemIndex) => (
-                              <div 
-                                key={item.id} 
+                              <div
+                                key={item.id}
                                 draggable
                                 onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
                                 className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
@@ -396,10 +405,9 @@ export default function DataImport() {
                           )}
                         </div>
                       ))}
-                      
-                      {/* 添加新组按钮 - 仅双钉共模和共钉共模显示 */}
+
                       {category.hasGroups && (
-                        <div 
+                        <div
                           onClick={() => handleAddGroup(category.id)}
                           className="border-2 border-dashed border-border/50 rounded-lg p-4 min-h-20 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-smooth group"
                         >
