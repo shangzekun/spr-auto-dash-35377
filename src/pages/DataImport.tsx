@@ -35,7 +35,7 @@ const categoryHeaders = [
 ];
 
 // CSS Grid列宽模板
-const gridTemplateColumns = "80px 120px 120px 80px 80px 80px 100px 100px";
+const gridTemplateColumns = "120px 120px 120px 40px 40px 40px 100px 100px";
 
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
