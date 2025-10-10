@@ -9,20 +9,26 @@ import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 
-const moduleConfigs = {
+const moduleConfigs: Record<string, any> = {
   "database-query": {
     title: "数据库记录查询",
     description: "快速查询和检索历史工艺数据记录，支持多维度筛选",
     status: "enabled",
     dataInputs: [
-      "查询关键词（批次/日期）",
-      "参数筛选条件（范围/类型）",
-      "数据维度选择（时间/设备）",
-      "导出格式参数",
-      "权限验证信息"
+      "材料1",
+      "材料2",
+      "材料3",
+      "厚度1",
+      "厚度2",
+      "厚度3",
+      "铆钉型号",
+      "铆模型号"
     ],
-    settings: ["查询权限", "缓存策略", "索引优化", "访问日志"],
+    settings: {
+      exactMatch: false
+    },
     exampleResult: {
       title: "查询结果",
       content: [
@@ -118,7 +124,7 @@ const moduleConfigs = {
 export default function Modules() {
   const [selectedModule, setSelectedModule] = useState("database-query");
   const [modules, setModules] = useState(moduleConfigs);
-  const [formData, setFormData] = useState({});
+  const [formData, setFormData] = useState<Record<string, string | string[]>>({});
   const [showResults, setShowResults] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -133,10 +139,24 @@ export default function Modules() {
   }, [selectedModule, modules]);
 
   // 处理输入参数变化
-  const handleInputChange = (inputKey, value) => {
+  const handleInputChange = (inputKey: string, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [inputKey]: value
+    }));
+  };
+  
+  // 切换精确查询
+  const toggleExactMatch = () => {
+    setModules(prev => ({
+      ...prev,
+      "database-query": {
+        ...prev["database-query"],
+        settings: {
+          ...prev["database-query"].settings,
+          exactMatch: !prev["database-query"].settings.exactMatch
+        }
+      }
     }));
   };
 
@@ -449,17 +469,6 @@ export default function Modules() {
                                 </div>
                               </div>
 
-                              {/* 局部 CSS，只影响这个输入框 */}
-                              <style jsx>{`
-                                .rivet-force-input input::-webkit-inner-spin-button,
-                                .rivet-force-input input::-webkit-outer-spin-button {
-                                  -webkit-appearance: none;
-                                  margin: 0;
-                                }
-                                .rivet-force-input input {
-                                  -moz-appearance: textfield;
-                                }
-                              `}</style>
 
 
 
@@ -475,14 +484,23 @@ export default function Modules() {
                                 />
                               </div>
                             </>
+                          ) : selectedModule === "database-query" ? (
+                            // 数据库查询专属设置
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <div className="space-y-0.5">
+                                  <Label className="text-sm font-medium">精确查询</Label>
+                                  <p className="text-xs text-muted-foreground">启用后将进行精确匹配查询</p>
+                                </div>
+                                <Switch
+                                  checked={modules["database-query"].settings.exactMatch}
+                                  onCheckedChange={toggleExactMatch}
+                                />
+                              </div>
+                            </div>
                           ) : (
                             // 其他模块默认设置
-                            modules[selectedModule].settings.map((setting, index) => (
-                              <div key={index} className="flex items-center justify-between p-3 border border-border/50 rounded-lg">
-                                <span className="font-medium">{setting}</span>
-                                <Button variant="outline" size="sm">配置</Button>
-                              </div>
-                            ))
+                            <div className="text-sm text-muted-foreground">暂无可配置项</div>
                           )}
                         </div>
                       </DialogContent>
@@ -510,17 +528,61 @@ export default function Modules() {
                         <Label htmlFor={`input-${index}`} className="text-sm font-medium">
                           {inputKey}
                         </Label>
-                        <Input
-                          id={`input-${index}`}
-                          value={formData[inputKey] || ""}
-                          onChange={(e) => handleInputChange(inputKey, e.target.value)}
-                          placeholder={`请输入${inputKey}`}
-                          disabled={modules[selectedModule].status === "disabled"}
-                          className="transition-all focus:ring-2 focus:ring-primary/50"
-                        />
+                        {selectedModule === "database-query" ? (
+                          <Select
+                            value={Array.isArray(formData[inputKey]) ? "" : (formData[inputKey] as string || "")}
+                            onValueChange={(value) => {
+                              const currentValues = Array.isArray(formData[inputKey]) ? formData[inputKey] : [];
+                              if (currentValues.includes(value)) {
+                                handleInputChange(inputKey, currentValues.filter(v => v !== value));
+                              } else {
+                                handleInputChange(inputKey, [...currentValues, value]);
+                              }
+                            }}
+                          >
+                            <SelectTrigger disabled={modules[selectedModule].status === "disabled"}>
+                              <SelectValue placeholder={`选择${inputKey}`}>
+                                {Array.isArray(formData[inputKey]) && formData[inputKey].length > 0
+                                  ? `已选${formData[inputKey].length}项`
+                                  : `选择${inputKey}`}
+                              </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="示例值1">示例值1</SelectItem>
+                              <SelectItem value="示例值2">示例值2</SelectItem>
+                              <SelectItem value="示例值3">示例值3</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Input
+                            id={`input-${index}`}
+                            value={(formData[inputKey] as string) || ""}
+                            onChange={(e) => handleInputChange(inputKey, e.target.value)}
+                            placeholder={`请输入${inputKey}`}
+                            disabled={modules[selectedModule].status === "disabled"}
+                            className="transition-all focus:ring-2 focus:ring-primary/50"
+                          />
+                        )}
                       </div>
                     ))}
                   </div>
+                  
+                  {/* 数据库查询模块的精确查询选项 */}
+                  {selectedModule === "database-query" && (
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox
+                        id="exact-match"
+                        checked={modules["database-query"].settings.exactMatch}
+                        onCheckedChange={toggleExactMatch}
+                      />
+                      <Label
+                        htmlFor="exact-match"
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        精确查询
+                      </Label>
+                    </div>
+                  )}
 
                   {/* 操作按钮组 */}
                   <div className="flex justify-end gap-3 pt-2">

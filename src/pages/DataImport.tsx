@@ -49,7 +49,7 @@ export default function DataImport() {
   const [isDragging, setIsDragging] = useState(false);
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
   const mainContentRef = useRef<HTMLDivElement>(null);
-  const columnWidthsRef = useRef<Record<string, Record<string, number>>>({});
+  const columnWidthsRef = useRef<Record<string, Record<string, number[]>>>({});
   const baseColumnWidthsRef = useRef<number[]>([]); // 存储导入数据栏的列宽作为基准
 
   // 同步所有分组列宽到基准列宽
@@ -80,7 +80,10 @@ export default function DataImport() {
     // 1. 先计算导入数据栏的列宽作为基准
     const baseWidths = calculateColumnWidths(dataRows);
     baseColumnWidthsRef.current = baseWidths;
-    columnWidthsRef.current["dataRows"] = baseWidths;
+    if (!columnWidthsRef.current["dataRows"]) {
+      columnWidthsRef.current["dataRows"] = {};
+    }
+    columnWidthsRef.current["dataRows"]["default"] = baseWidths;
     
     // 2. 强制同步所有分组列宽到基准列宽
     syncAllGroupWidthsToBase();
@@ -91,7 +94,10 @@ export default function DataImport() {
     if (dataRows.length > 0) {
       const baseWidths = calculateColumnWidths(dataRows);
       baseColumnWidthsRef.current = baseWidths;
-      columnWidthsRef.current["dataRows"] = baseWidths;
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
+      }
+      columnWidthsRef.current["dataRows"]["default"] = baseWidths;
       
       // 强制同步所有分组列宽
       syncAllGroupWidthsToBase();
@@ -237,7 +243,10 @@ export default function DataImport() {
     if (draggedItem.source === "dataRows") {
       setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
       const remainingRows = dataRows.filter(row => row.id !== draggedItem.id);
-      columnWidthsRef.current["dataRows"] = calculateColumnWidths(remainingRows);
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
+      }
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
     }
 
     setCategories(updatedCategories);
@@ -265,7 +274,10 @@ export default function DataImport() {
     const group = category?.groups.find(g => g.id === groupId);
     if (group?.items.length) {
       setDataRows(prev => [...prev, ...group.items]);
-      columnWidthsRef.current["dataRows"] = calculateColumnWidths([...dataRows, ...group.items]);
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
+      }
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, ...group.items]);
     }
 
     // 删除组并清除列宽缓存
@@ -315,7 +327,10 @@ export default function DataImport() {
     // 更新列宽
     const updatedGroupItems = group.items.filter(i => i.id !== itemId);
     updateCategoryColumnWidths(categoryId, groupId, updatedGroupItems);
-    columnWidthsRef.current["dataRows"] = calculateColumnWidths([...dataRows, item]);
+    if (!columnWidthsRef.current["dataRows"]) {
+      columnWidthsRef.current["dataRows"] = {};
+    }
+    columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, item]);
   };
 
   /** 添加新组 */

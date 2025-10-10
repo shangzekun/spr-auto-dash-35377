@@ -86,11 +86,13 @@ export function AppSidebar() {
 
         {/* Navigation Menu */}
         <SidebarGroup className="px-4 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <SidebarGroupLabel className="text-sidebar-foreground/60 font-medium">
+          <div className="flex items-center gap-2 mb-4">
+            <SidebarGroupLabel className="text-sidebar-foreground/60 font-medium flex-1">
               系统导航
             </SidebarGroupLabel>
-            <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth h-6 w-6" />
+            {!isCollapsed && (
+              <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth h-6 w-6 flex-shrink-0" />
+            )}
           </div>
           
           <SidebarGroupContent>
