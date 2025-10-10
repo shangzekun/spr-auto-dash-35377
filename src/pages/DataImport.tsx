@@ -48,7 +48,124 @@ export default function DataImport() {
   const [editingProjectName, setEditingProjectName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
-  const mainContentRef = useRef<HTMLDivElement>(null); // 主内容区域引用
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const columnWidthsRef = useRef<Record<string, Record<string, number>>>({});
+  const baseColumnWidthsRef = useRef<number[]>([]); // 存储导入数据栏的列宽作为基准
+
+  // 同步所有分组列宽到基准列宽
+  const syncAllGroupWidthsToBase = () => {
+    if (baseColumnWidthsRef.current.length === 0) return;
+    
+    const updatedCategories = [...categories];
+    updatedCategories.forEach((category, catIndex) => {
+      category.groups.forEach((group, groupIndex) => {
+        // 强制使用基准列宽更新当前分组
+        if (!columnWidthsRef.current[category.id]) {
+          columnWidthsRef.current[category.id] = {};
+        }
+        columnWidthsRef.current[category.id][group.id] = [...baseColumnWidthsRef.current];
+        
+        // 浅拷贝触发更新
+        updatedCategories[catIndex].groups[groupIndex] = {
+          ...group,
+          items: [...group.items]
+        };
+      });
+    });
+    setCategories(updatedCategories);
+  };
+
+  // 初始化列宽
+  useEffect(() => {
+    // 1. 先计算导入数据栏的列宽作为基准
+    const baseWidths = calculateColumnWidths(dataRows);
+    baseColumnWidthsRef.current = baseWidths;
+    columnWidthsRef.current["dataRows"] = baseWidths;
+    
+    // 2. 强制同步所有分组列宽到基准列宽
+    syncAllGroupWidthsToBase();
+  }, []);
+
+  // 当导入数据栏列宽变化时，同步更新所有分组
+  useEffect(() => {
+    if (dataRows.length > 0) {
+      const baseWidths = calculateColumnWidths(dataRows);
+      baseColumnWidthsRef.current = baseWidths;
+      columnWidthsRef.current["dataRows"] = baseWidths;
+      
+      // 强制同步所有分组列宽
+      syncAllGroupWidthsToBase();
+    }
+  }, [dataRows]);
+
+  // 计算列宽 - 强制参考基准列宽
+  const calculateColumnWidths = (items: Array<{ id: string; data: string[] }>) => {
+    const minBaseWidth = 80;
+    const widths = new Array(dataHeaders.length + 2).fill(0);
+    widths[0] = 70; // 序号列固定宽度
+    widths[widths.length - 1] = 60; // 操作列固定宽度
+
+    // 计算标题宽度
+    dataHeaders.forEach((header, index) => {
+      const tempSpan = document.createElement('span');
+      tempSpan.style.visibility = 'hidden';
+      tempSpan.style.position = 'absolute';
+      tempSpan.style.whiteSpace = 'nowrap';
+      tempSpan.style.fontSize = '0.875rem';
+      tempSpan.style.fontFamily = 'inherit';
+      tempSpan.textContent = header;
+      document.body.appendChild(tempSpan);
+      
+      const headerWidth = tempSpan.offsetWidth + 20; // 增加内边距
+      document.body.removeChild(tempSpan);
+      
+      widths[index + 1] = Math.max(headerWidth, minBaseWidth);
+    });
+
+    // 计算内容宽度（如果有数据）
+    if (items.length > 0) {
+      items.forEach(item => {
+        item.data.forEach((cell, index) => {
+          const tempSpan = document.createElement('span');
+          tempSpan.style.visibility = 'hidden';
+          tempSpan.style.position = 'absolute';
+          tempSpan.style.whiteSpace = 'nowrap';
+          tempSpan.style.fontSize = '0.875rem';
+          tempSpan.style.fontFamily = 'inherit';
+          tempSpan.textContent = cell || ' ';
+          document.body.appendChild(tempSpan);
+          
+          const cellWidth = tempSpan.offsetWidth + 20; // 增加内边距
+          document.body.removeChild(tempSpan);
+          
+          if (cellWidth > widths[index + 1]) {
+            widths[index + 1] = cellWidth;
+          }
+        });
+      });
+    }
+
+    // 强制参考基准列宽（即使是空数据）
+    if (baseColumnWidthsRef.current.length > 0) {
+      return widths.map((w, i) => Math.max(w, baseColumnWidthsRef.current[i] || w));
+    }
+    return widths;
+  };
+
+  // 更新分类列宽 - 强制使用基准列宽
+  const updateCategoryColumnWidths = (categoryId: string, groupId: string, updatedItems: Array<{ id: string; data: string[] }>) => {
+    let widths = calculateColumnWidths(updatedItems);
+    
+    // 强制覆盖为基准列宽
+    if (baseColumnWidthsRef.current.length > 0) {
+      widths = [...baseColumnWidthsRef.current];
+    }
+    
+    if (!columnWidthsRef.current[categoryId]) {
+      columnWidthsRef.current[categoryId] = {};
+    }
+    columnWidthsRef.current[categoryId][groupId] = widths;
+  };
 
   /** 拖拽开始 */
   const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string, groupId?: string) => {
@@ -56,60 +173,71 @@ export default function DataImport() {
     setIsDragging(true);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", rowId);
-    // 拖拽开始时聚焦主内容区，确保滚轮事件能被捕获
     mainContentRef.current?.focus();
+    document.body.classList.add('dragging-active');
   };
 
   /** 拖拽结束 */
   const handleDragEnd = () => {
     setIsDragging(false);
     setDraggedItem(null);
+    document.body.classList.remove('dragging-active');
   };
 
   /** 拖拽到组 */
   const handleDrop = (e: React.DragEvent, categoryId: string, groupId?: string) => {
     e.preventDefault();
-    if (!draggedItem) return;
+    if (!draggedItem || !groupId) return;
 
     const updatedCategories = [...categories];
+    let updatedItems: Array<{ id: string; data: string[] }> = [];
     
-    // 1. 从原组中移除数据
+    // 从原组中移除数据
     if (draggedItem.source !== "dataRows" && draggedItem.groupId) {
       const sourceCatIndex = updatedCategories.findIndex(cat => cat.id === draggedItem.source);
       if (sourceCatIndex !== -1) {
-        updatedCategories[sourceCatIndex].groups = updatedCategories[sourceCatIndex].groups.map(g => 
-          g.id === draggedItem.groupId 
-            ? { ...g, items: g.items.filter(item => item.id !== draggedItem.id) }
-            : g
-        );
+        updatedCategories[sourceCatIndex].groups = updatedCategories[sourceCatIndex].groups.map(g => {
+          if (g.id === draggedItem.groupId) {
+            const updatedSourceItems = g.items.filter(item => item.id !== draggedItem.id);
+            updateCategoryColumnWidths(draggedItem.source, draggedItem.groupId, updatedSourceItems);
+            return { ...g, items: updatedSourceItems };
+          }
+          return g;
+        });
       }
     }
 
-    // 2. 向目标组添加数据
+    // 向目标组添加数据
     const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
     if (targetCatIndex !== -1) {
       const targetCategory = { ...updatedCategories[targetCatIndex] };
       
       if (targetCategory.hasGroups && groupId) {
-        targetCategory.groups = targetCategory.groups.map(g =>
-          g.id === groupId 
-            ? { ...g, items: [...g.items, { id: draggedItem.id, data: draggedItem.data }] }
-            : g
-        );
+        targetCategory.groups = targetCategory.groups.map(g => {
+          if (g.id === groupId) {
+            updatedItems = [...g.items, { id: draggedItem.id, data: draggedItem.data }];
+            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+            return { ...g, items: updatedItems };
+          }
+          return g;
+        });
       } else if (!targetCategory.hasGroups) {
-        const currentItems = targetCategory.groups[0]?.items || [];
+        updatedItems = [...(targetCategory.groups[0]?.items || []), { id: draggedItem.id, data: draggedItem.data }];
+        updateCategoryColumnWidths(categoryId, "default", updatedItems);
         targetCategory.groups = [{ 
           id: "default", 
-          items: [...currentItems, { id: draggedItem.id, data: draggedItem.data }] 
+          items: updatedItems 
         }];
       }
       
       updatedCategories[targetCatIndex] = targetCategory;
     }
 
-    // 3. 源为导入表时删除原行
+    // 源为导入表时删除原行
     if (draggedItem.source === "dataRows") {
       setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
+      const remainingRows = dataRows.filter(row => row.id !== draggedItem.id);
+      columnWidthsRef.current["dataRows"] = calculateColumnWidths(remainingRows);
     }
 
     setCategories(updatedCategories);
@@ -132,14 +260,15 @@ export default function DataImport() {
     if (!deleteGroupInfo) return;
     const { categoryId, groupId } = deleteGroupInfo;
 
-    // 1. 组内数据放回导入区
+    // 组内数据放回导入区
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
     if (group?.items.length) {
       setDataRows(prev => [...prev, ...group.items]);
+      columnWidthsRef.current["dataRows"] = calculateColumnWidths([...dataRows, ...group.items]);
     }
 
-    // 2. 删除组
+    // 删除组并清除列宽缓存
     setCategories(prev =>
       prev.map(cat =>
         cat.id === categoryId
@@ -147,6 +276,13 @@ export default function DataImport() {
           : cat
       )
     );
+    
+    if (columnWidthsRef.current[categoryId]) {
+      delete columnWidthsRef.current[categoryId][groupId];
+      if (Object.keys(columnWidthsRef.current[categoryId]).length === 0) {
+        delete columnWidthsRef.current[categoryId];
+      }
+    }
 
     setIsDeleteGroupDialogOpen(false);
     setDeleteGroupInfo(null);
@@ -160,34 +296,49 @@ export default function DataImport() {
     const item = group?.items.find(i => i.id === itemId);
     if (!item) return;
 
-    setCategories(prev =>
-      prev.map(cat =>
-        cat.id === categoryId
-          ? {
-              ...cat,
-              groups: cat.groups.map(g =>
-                g.id === groupId ? { ...g, items: g.items.filter(i => i.id !== itemId) } : g
-              )
-            }
-          : cat
-      )
+    const updatedGroups = categories.map(cat =>
+      cat.id === categoryId
+        ? {
+            ...cat,
+            groups: cat.groups.map(g =>
+              g.id === groupId 
+                ? { ...g, items: g.items.filter(i => i.id !== itemId) } 
+                : g
+            )
+          }
+        : cat
     );
 
+    setCategories(updatedGroups);
     setDataRows(prev => [...prev, item]);
+
+    // 更新列宽
+    const updatedGroupItems = group.items.filter(i => i.id !== itemId);
+    updateCategoryColumnWidths(categoryId, groupId, updatedGroupItems);
+    columnWidthsRef.current["dataRows"] = calculateColumnWidths([...dataRows, item]);
   };
 
   /** 添加新组 */
   const handleAddGroup = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    const groupCount = category?.groups.length || 0;
+    const newGroupId = `group-${Date.now()}`;
     setCategories(prev =>
       prev.map(cat =>
         cat.id === categoryId
           ? { 
               ...cat, 
-              groups: [...cat.groups, { id: `group-${Date.now()}`, items: [] }] 
+              groups: [...cat.groups, { id: newGroupId, items: [] }] 
             }
           : cat
       )
     );
+    
+    // 新组直接使用基准列宽
+    if (!columnWidthsRef.current[categoryId]) {
+      columnWidthsRef.current[categoryId] = {};
+    }
+    columnWidthsRef.current[categoryId][newGroupId] = [...baseColumnWidthsRef.current];
   };
 
   /** 创建新项目 */
@@ -238,7 +389,7 @@ export default function DataImport() {
     toast.success("项目已删除");
   };
 
-  /** 拖拽时滚动处理（同时支持鼠标边缘滚动和滚轮滚动） */
+  /** 拖拽时滚动处理 */
   useEffect(() => {
     if (!isDragging) return;
 
@@ -250,24 +401,21 @@ export default function DataImport() {
       const mouseY = e.clientY;
 
       if (mouseY < edgeThreshold) {
-        window.scrollBy(0, -scrollSpeed);
+        window.scrollBy({ top: -scrollSpeed, behavior: 'smooth' });
       } else if (mouseY > windowHeight - edgeThreshold) {
-        window.scrollBy(0, scrollSpeed);
+        window.scrollBy({ top: scrollSpeed, behavior: 'smooth' });
       }
     };
 
-    // 滚轮滚动处理（核心修复）
+    // 滚轮滚动处理
     const handleWheel = (e: WheelEvent) => {
-      e.preventDefault(); // 阻止默认行为，避免冲突
-      const scrollAmount = e.deltaY > 0 ? 20 : -20; // 根据滚轮方向设置滚动量
-      window.scrollBy(0, scrollAmount);
+      const scrollAmount = e.deltaY > 0 ? 20 : -20;
+      window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
     };
 
-    // 绑定事件
     document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("wheel", handleWheel, { passive: false }); // 必须设置passive: false才能阻止默认行为
+    document.addEventListener("wheel", handleWheel, { passive: false });
 
-    // 清理事件
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("wheel", handleWheel);
@@ -300,7 +448,7 @@ export default function DataImport() {
               {projects.map(project => (
                 <div
                   key={project.id}
-                  className={`p-4 rounded-lg border cursor-pointer transition-smooth hover:scale-105 ${
+                  className={`p-4 rounded-lg border cursor-pointer transition-smooth ${
                     selectedProject === project.id ? "bg-primary/10 border-primary/20" : "bg-card border-border hover:bg-muted/30"
                   }`}
                   onClick={() => setSelectedProject(project.id)}
@@ -364,33 +512,47 @@ export default function DataImport() {
           </div>
 
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            {/* 1. 导入数据（Table结构+列对齐） */}
+            {/* 1. 导入数据 */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
                 <CardHeader>
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
-                  {/* 横向滚动容器 */}
                   <div className="overflow-x-auto w-fit">
-                    {/* Table结构：列对齐核心 */}
                     <table className="border-collapse">
                       <thead>
                         <tr>
-                          {/* 表头行：与数据行严格对齐 */}
-                          <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg border border-primary/20 min-w-[50px]">
+                          <th 
+                            className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg"
+                            style={{ 
+                              width: baseColumnWidthsRef.current[0] || 70,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
                             序号
                           </th>
                           {dataHeaders.map((header, index) => (
                             <th
                               key={index}
-                              className={`p-3 bg-primary/10 text-center font-medium text-sm border-y border-primary/20 ${
-                                index === dataHeaders.length - 1 ? "rounded-r-lg" : ""
-                              } min-w-[max-content]`}
+                              className="p-3 bg-primary/10 text-center font-medium text-sm"
+                              style={{ 
+                                width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                whiteSpace: 'nowrap'
+                              }}
                             >
                               {header}
                             </th>
                           ))}
+                          <th 
+                            className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg"
+                            style={{ 
+                              width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            &nbsp;
+                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -400,23 +562,42 @@ export default function DataImport() {
                             draggable
                             onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
                             onDragEnd={handleDragEnd}
-                            className="cursor-move hover:bg-primary/5 transition-all duration-200"
+                            className="cursor-move transition-all duration-200 rounded-lg hover:border-primary hover:border-2 hover:bg-primary/5"
+                            style={{ 
+                              borderRadius: '6px',
+                              transition: 'all 0.2s ease'
+                            }}
                           >
-                            {/* 序号列 */}
-                            <td className="p-3 text-center text-sm border border-border/20 bg-background min-w-[50px]">
+                            <td 
+                              className="p-3 text-center text-sm"
+                              style={{ 
+                                width: baseColumnWidthsRef.current[0] || 70,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
                               {rowIndex + 1}
                             </td>
-                            {/* 数据列：与表头一一对应 */}
                             {row.data.map((cell, index) => (
                               <td
                                 key={index}
-                                className={`p-3 text-center text-sm border-y border-r border-border/20 bg-background ${
-                                  index === row.data.length - 1 ? "border-r-0" : ""
-                                } min-w-[max-content]`}
+                                className="p-3 text-center text-sm"
+                                style={{ 
+                                  width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                  whiteSpace: 'nowrap'
+                                }}
                               >
                                 {cell}
                               </td>
                             ))}
+                            <td 
+                              className="p-3 text-center"
+                              style={{ 
+                                width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              &nbsp;
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -426,7 +607,7 @@ export default function DataImport() {
               </Card>
             )}
 
-            {/* 2. 分类分组（Table结构+列对齐） */}
+            {/* 2. 分类分组 */}
             <div className="space-y-6">
               {categories.map(category => (
                 <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
@@ -434,57 +615,71 @@ export default function DataImport() {
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
-                    {/* 横向滚动容器 */}
                     <div className="overflow-x-auto w-fit">
-                      {/* 分类标题行（Table表头样式） */}
                       <table className="border-collapse mb-4">
                         <thead>
                           <tr>
-                            <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg border border-primary/20 min-w-[50px]">
+                            <th 
+                              className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg"
+                              style={{ 
+                                width: baseColumnWidthsRef.current[0] || 70,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
                               序号
                             </th>
                             {dataHeaders.map((header, index) => (
                               <th
                                 key={index}
-                                className="p-3 bg-primary/10 text-center font-medium text-sm border-y border-primary/20 min-w-[max-content]"
+                                className="p-3 bg-primary/10 text-center font-medium text-sm"
+                                style={{ 
+                                  width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                  whiteSpace: 'nowrap'
+                                }}
                               >
                                 {header}
                               </th>
                             ))}
-                            {/* 操作列 */}
-                            <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg border border-primary/20 min-w-[40px]">
+                            <th 
+                              className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg"
+                              style={{ 
+                                width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
                               &nbsp;
                             </th>
                           </tr>
                         </thead>
                       </table>
 
-                      {/* 分组列表 */}
                       <div className="space-y-4">
                         {category.groups.map((group, groupIndex) => (
                           <div
                             key={group.id}
                             onDrop={(e) => handleDrop(e, category.id, group.id)}
                             onDragOver={handleDragOver}
-                            className="border-2 border-dashed border-border/50 rounded-lg p-4 min-h-32"
+                            className="border-2 border-dashed border-border/50 rounded-lg p-4 pt-6 pb-2 min-h-32 relative"
                           >
-                            {/* 组删除按钮 */}
+                            {/* 组编号显示在左上角 */}
+                            <div className="absolute top-2 left-2 text-xs font-medium text-muted-foreground">
+                              组{groupIndex + 1}
+                            </div>
+                            
+                            {/* 删除按钮显示在右上角，不占一行 */}
                             {category.hasGroups && (
-                              <div className="flex justify-end mb-3">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                  onClick={() => handleOpenDeleteGroupDialog(category.id, group.id)}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                onClick={() => handleOpenDeleteGroupDialog(category.id, group.id)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             )}
 
-                            {/* 组内数据（Table结构） */}
                             {group.items.length === 0 ? (
-                              <p className="text-muted-foreground text-sm text-center py-8">
+                              <p className="text-muted-foreground text-sm text-center py-6">
                                 拖拽数据到此处进行分组
                               </p>
                             ) : (
@@ -496,23 +691,40 @@ export default function DataImport() {
                                       draggable
                                       onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
                                       onDragEnd={handleDragEnd}
-                                      className="cursor-move hover:bg-primary/5 transition-all duration-200"
+                                      className="cursor-move transition-all duration-200 rounded-lg hover:border-primary hover:border-2 hover:bg-primary/5"
+                                      style={{ 
+                                        borderRadius: '6px',
+                                        transition: 'all 0.2s ease'
+                                      }}
                                     >
-                                      {/* 序号列 */}
-                                      <td className="p-3 text-center text-sm border border-border/20 bg-background min-w-[50px]">
+                                      <td 
+                                        className="p-3 text-center text-sm"
+                                        style={{ 
+                                          width: baseColumnWidthsRef.current[0] || 70,
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
                                         {itemIndex + 1}
                                       </td>
-                                      {/* 数据列 */}
                                       {item.data.map((cell, index) => (
                                         <td
                                           key={index}
-                                          className="p-3 text-center text-sm border-y border-r border-border/20 bg-background min-w-[max-content]"
+                                          className="p-3 text-center text-sm"
+                                          style={{ 
+                                            width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                            whiteSpace: 'nowrap'
+                                          }}
                                         >
                                           {cell}
                                         </td>
                                       ))}
-                                      {/* 操作列 */}
-                                      <td className="p-3 text-center border border-border/20 bg-background min-w-[40px]">
+                                      <td 
+                                        className="p-3 text-center"
+                                        style={{ 
+                                          width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                          whiteSpace: 'nowrap'
+                                        }}
+                                      >
                                         <Button
                                           variant="ghost"
                                           size="sm"
@@ -530,14 +742,13 @@ export default function DataImport() {
                           </div>
                         ))}
 
-                        {/* 添加新组按钮 */}
                         {category.hasGroups && (
                           <div
                             onClick={() => handleAddGroup(category.id)}
-                            className="border-2 border-dashed border-border/50 rounded-lg p-4 min-h-20 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-smooth group"
+                            className="border-2 border-dashed border-border/50 rounded-lg p-2 min-h-16 flex items-center justify-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-smooth group"
                           >
                             <div className="flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-smooth">
-                              <Plus className="w-5 h-5" />
+                              <Plus className="w-4 h-4" />
                               <span className="text-sm font-medium">添加新组</span>
                             </div>
                           </div>
