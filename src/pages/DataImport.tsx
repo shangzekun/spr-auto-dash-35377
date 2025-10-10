@@ -34,9 +34,6 @@ const categoryHeaders = [
   { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true }
 ];
 
-// CSS Grid列宽模板
-const gridTemplateColumns = "120px 120px 120px 40px 40px 40px 100px 100px";
-
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
   const [projects, setProjects] = useState(mockProjects);
@@ -297,43 +294,45 @@ export default function DataImport() {
           </div>
 
           <div className="flex-1 p-6 space-y-6 overflow-y-auto">
-            {/* 数据行显示 */}
+            {/* 导入数据表格 */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
                 <CardHeader>
                   <CardTitle className="text-lg">导入数据</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    {/* 表头 */}
-                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20" style={{ gridTemplateColumns }}>
-                      <div className="text-center font-medium text-sm" style={{ width: 40 }}>序号</div>
-                      {dataHeaders.map((header) => (
-                        <div key={header} className="text-center font-medium text-sm">{header}</div>
-                      ))}
-                    </div>
-
-                    {/* 数据行 */}
-                    {dataRows.map((row, rowIndex) => (
-                      <div
-                        key={row.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                        className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105"
-                        style={{ gridTemplateColumns }}
-                      >
-                        <div className="text-center">{rowIndex + 1}</div>
-                        {row.data.map((cell, index) => (
-                          <div key={index} className="text-left">{cell}</div>
+                  <ScrollArea className="overflow-x-auto">
+                    <table className="border-collapse text-center w-max">
+                      <thead className="bg-primary/10">
+                        <tr>
+                          <th className="px-3 py-2 border border-border whitespace-nowrap">序号</th>
+                          {dataHeaders.map((header) => (
+                            <th key={header} className="px-3 py-2 border border-border whitespace-nowrap">{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {dataRows.map((row, rowIndex) => (
+                          <tr
+                            key={row.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
+                            className="hover:bg-muted/30 transition cursor-move"
+                          >
+                            <td className="px-3 py-2 border border-border whitespace-nowrap">{rowIndex + 1}</td>
+                            {row.data.map((cell, index) => (
+                              <td key={index} className="px-3 py-2 border border-border whitespace-nowrap">{cell}</td>
+                            ))}
+                          </tr>
                         ))}
-                      </div>
-                    ))}
-                  </div>
+                      </tbody>
+                    </table>
+                  </ScrollArea>
                 </CardContent>
               </Card>
             )}
 
-            {/* 分组区域 */}
+            {/* 分组区域表格 */}
             <div className="space-y-6">
               {categories.map((category) => (
                 <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
@@ -341,13 +340,18 @@ export default function DataImport() {
                     <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {/* 表头 */}
-                    <div className="grid items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20 mb-4" style={{ gridTemplateColumns }}>
-                      <div className="text-center font-medium text-sm"style={{ width: 40 }}>序号</div>
-                      {dataHeaders.map((header) => (
-                        <div key={header} className="text-center font-medium text-sm">{header}</div>
-                      ))}
-                    </div>
+                    <ScrollArea className="overflow-x-auto">
+                      <table className="border-collapse text-center w-max mb-4">
+                        <thead className="bg-primary/10">
+                          <tr>
+                            <th className="px-3 py-2 border border-border whitespace-nowrap">序号</th>
+                            {dataHeaders.map((header) => (
+                              <th key={header} className="px-3 py-2 border border-border whitespace-nowrap">{header}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                      </table>
+                    </ScrollArea>
 
                     <div className="space-y-4">
                       {category.groups.map((group, groupIndex) => (
@@ -364,35 +368,39 @@ export default function DataImport() {
                           )}
 
                           {group.items.length === 0 ? (
-                            <div
-                              className="grid items-center justify-center text-muted-foreground text-sm py-8"
-                              style={{ gridTemplateColumns }}
-                            >
-                              <div className="col-span-8 text-center">拖拽数据到此处进行分组</div>
+                            <div className="grid justify-center text-muted-foreground text-sm py-8">
+                              拖拽数据到此处进行分组
                             </div>
                           ) : (
-                            group.items.map((item, itemIndex) => (
-                              <div
-                                key={item.id}
-                                draggable
-                                onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                className="grid items-center gap-2 px-2 py-1 bg-muted/30 rounded-lg cursor-move hover:bg-muted/50 transition-smooth hover:scale-105 group relative"
-                                style={{ gridTemplateColumns }}
-                              >
-                                <div className="text-center">{itemIndex + 1}</div>
-                                {item.data.map((cell, index) => (
-                                  <div key={index} className="text-left">{cell}</div>
-                                ))}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute -right-2 -top-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-smooth bg-destructive/10 hover:bg-destructive/20"
-                                  onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
-                                >
-                                  <X className="h-3 w-3 text-destructive" />
-                                </Button>
-                              </div>
-                            ))
+                            <ScrollArea className="overflow-x-auto">
+                              <table className="border-collapse text-center w-max">
+                                <tbody>
+                                  {group.items.map((item, itemIndex) => (
+                                    <tr
+                                      key={item.id}
+                                      draggable
+                                      onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
+                                      className="hover:bg-muted/30 transition cursor-move relative"
+                                    >
+                                      <td className="px-3 py-2 border border-border whitespace-nowrap">{itemIndex + 1}</td>
+                                      {item.data.map((cell, index) => (
+                                        <td key={index} className="px-3 py-2 border border-border whitespace-nowrap">{cell}</td>
+                                      ))}
+                                      <td className="relative">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="absolute -right-2 -top-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-smooth bg-destructive/10 hover:bg-destructive/20"
+                                          onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
+                                        >
+                                          <X className="h-3 w-3 text-destructive" />
+                                        </Button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </ScrollArea>
                           )}
                         </div>
                       ))}
