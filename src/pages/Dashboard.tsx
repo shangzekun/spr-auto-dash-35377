@@ -120,6 +120,159 @@ const mockHistoryRecords = [
     duration: "45m",
     operator: "刘工程师",
   },
+  {
+    id: "6",
+    taskName: "材料强度测试",
+    type: "质量检测",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-14 13:00",
+    endTime: "2024-01-14 14:30",
+    duration: "1h 30m",
+    operator: "赵工程师",
+  },
+  {
+    id: "7",
+    taskName: "焊接工艺优化",
+    type: "参数优化",
+    status: "running" as const,
+    progress: 45,
+    startTime: "2024-01-15 15:00",
+    operator: "孙工程师",
+  },
+  {
+    id: "8",
+    taskName: "自动化流程设计",
+    type: "流程设计",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-14 10:00",
+    endTime: "2024-01-14 12:00",
+    duration: "2h",
+    operator: "周工程师",
+  },
+  {
+    id: "9",
+    taskName: "质量预测模型",
+    type: "模型训练",
+    status: "pending" as const,
+    progress: 0,
+    startTime: "2024-01-15 17:00",
+    operator: "吴工程师",
+  },
+  {
+    id: "10",
+    taskName: "设备故障诊断",
+    type: "异常检测",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-14 09:00",
+    endTime: "2024-01-14 10:45",
+    duration: "1h 45m",
+    operator: "郑工程师",
+  },
+  {
+    id: "11",
+    taskName: "生产效率分析",
+    type: "数据分析",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-13 14:00",
+    endTime: "2024-01-13 16:30",
+    duration: "2h 30m",
+    operator: "王工程师",
+  },
+  {
+    id: "12",
+    taskName: "新工艺验证",
+    type: "仿真分析",
+    status: "running" as const,
+    progress: 78,
+    startTime: "2024-01-15 11:00",
+    operator: "李工程师",
+  },
+  {
+    id: "13",
+    taskName: "成本优化方案",
+    type: "参数优化",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-13 10:00",
+    endTime: "2024-01-13 13:00",
+    duration: "3h",
+    operator: "张工程师",
+  },
+  {
+    id: "14",
+    taskName: "质量控制模型",
+    type: "模型训练",
+    status: "failed" as const,
+    progress: 32,
+    startTime: "2024-01-14 16:00",
+    endTime: "2024-01-14 17:00",
+    duration: "1h",
+    operator: "陈工程师",
+  },
+  {
+    id: "15",
+    taskName: "工艺稳定性分析",
+    type: "数据分析",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-13 09:00",
+    endTime: "2024-01-13 11:15",
+    duration: "2h 15m",
+    operator: "刘工程师",
+  },
+  {
+    id: "16",
+    taskName: "设备性能评估",
+    type: "性能测试",
+    status: "pending" as const,
+    progress: 0,
+    startTime: "2024-01-15 18:00",
+    operator: "赵工程师",
+  },
+  {
+    id: "17",
+    taskName: "工艺路线规划",
+    type: "流程设计",
+    status: "running" as const,
+    progress: 55,
+    startTime: "2024-01-15 13:00",
+    operator: "孙工程师",
+  },
+  {
+    id: "18",
+    taskName: "材料性能测试",
+    type: "质量检测",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-13 15:00",
+    endTime: "2024-01-13 16:30",
+    duration: "1h 30m",
+    operator: "周工程师",
+  },
+  {
+    id: "19",
+    taskName: "智能排产算法",
+    type: "算法优化",
+    status: "completed" as const,
+    progress: 100,
+    startTime: "2024-01-12 10:00",
+    endTime: "2024-01-12 14:00",
+    duration: "4h",
+    operator: "吴工程师",
+  },
+  {
+    id: "20",
+    taskName: "能耗优化分析",
+    type: "参数优化",
+    status: "running" as const,
+    progress: 62,
+    startTime: "2024-01-15 12:00",
+    operator: "郑工程师",
+  },
 ];
 
 export default function Dashboard() {
@@ -136,24 +289,24 @@ export default function Dashboard() {
       </div>
 
       {/* 主体内容区域 */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-[calc(100vh-180px)]">
         {/* 左侧：指标 + 历史记录 */}
-        <div className="xl:col-span-3 space-y-6 min-w-0">
+        <div className="xl:col-span-3 flex flex-col gap-6 min-w-0 h-full">
           {/* 指标卡片 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-shrink-0">
             {mockMetrics.map((metric, index) => (
               <MetricCard key={index} {...metric} />
             ))}
           </div>
 
           {/* 历史记录表格（带滚动） */}
-          <div className="overflow-x-auto rounded-lg shadow-sm bg-card">
+          <div className="flex-1 overflow-hidden">
             <HistoryTable records={mockHistoryRecords} />
           </div>
         </div>
 
         {/* 右侧：公告栏 */}
-        <div className="xl:col-span-1">
+        <div className="xl:col-span-1 h-full">
           <AnnouncementCard announcements={mockAnnouncements} />
         </div>
       </div>
