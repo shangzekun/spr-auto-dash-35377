@@ -90,7 +90,7 @@ export default function Scenarios() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* 场景列表 */}
         <div className="lg:col-span-1 space-y-4">
           {Object.entries(scenarios).map(([scenarioId, scenario]) => {
@@ -138,7 +138,7 @@ export default function Scenarios() {
         </div>
 
         {/* 场景详情 */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-4">
           {selectedScenario && (
             <Card className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-smooth">
               <CardHeader>
