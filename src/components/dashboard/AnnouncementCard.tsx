@@ -59,47 +59,49 @@ export function AnnouncementCard({ announcements }: AnnouncementCardProps) {
 
   return (
     <>
-      <Card className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-smooth">
-        <CardHeader className="pb-3">
+      <Card className="bg-gradient-card border-border/50 shadow-card hover:shadow-elegant transition-smooth h-full flex flex-col">
+        <CardHeader className="pb-3 flex-shrink-0">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Bell className="h-5 w-5 text-primary" />
             更新公告
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {announcements.length === 0 ? (
-            <p className="text-muted-foreground text-sm text-center py-4">暂无公告</p>
-          ) : (
-            announcements.map((announcement) => (
-              <div
-                key={announcement.id}
-                className="border border-border/50 rounded-lg p-4 hover:bg-muted/30 hover:scale-105 transition-smooth cursor-pointer group"
-                onClick={() => handleAnnouncementClick(announcement)}
-              >
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <h4 className="font-medium text-foreground text-sm group-hover:text-primary transition-smooth">
-                    {announcement.title}
-                  </h4>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {announcement.isNew && (
-                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-                        新
-                      </Badge>
-                    )}
+        <CardContent className="flex-1 overflow-auto">
+          <div className="space-y-4">
+            {announcements.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-4">暂无公告</p>
+            ) : (
+              announcements.map((announcement) => (
+                <div
+                  key={announcement.id}
+                  className="border border-border/50 rounded-lg p-4 hover:bg-muted/30 hover:scale-105 transition-smooth cursor-pointer group"
+                  onClick={() => handleAnnouncementClick(announcement)}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <h4 className="font-medium text-foreground text-sm group-hover:text-primary transition-smooth">
+                      {announcement.title}
+                    </h4>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {announcement.isNew && (
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
+                          新
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                    {announcement.content}
+                  </p>
+
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" />
+                    {announcement.timestamp}
                   </div>
                 </div>
-
-                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-                  {announcement.content}
-                </p>
-
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  {announcement.timestamp}
-                </div>
-              </div>
-            ))
-          )}
+              ))
+            )}
+          </div>
         </CardContent>
       </Card>
 

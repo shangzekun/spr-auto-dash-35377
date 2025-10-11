@@ -277,9 +277,9 @@ const mockHistoryRecords = [
 
 export default function Dashboard() {
   return (
-    <div className="space-y-6">
+    <div className="h-full flex flex-col space-y-6">
       {/* 页面标题 */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-shrink-0">
         <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
           <Activity className="w-4 h-4 text-primary-foreground" />
         </div>
@@ -289,9 +289,9 @@ export default function Dashboard() {
       </div>
 
       {/* 主体内容区域 */}
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 h-[calc(100vh-180px)]">
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 flex-1 min-h-0">
         {/* 左侧：指标 + 历史记录 */}
-        <div className="xl:col-span-3 flex flex-col gap-6 min-w-0 h-full">
+        <div className="xl:col-span-3 flex flex-col gap-6 min-w-0 min-h-0">
           {/* 指标卡片 */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 flex-shrink-0">
             {mockMetrics.map((metric, index) => (
@@ -300,13 +300,13 @@ export default function Dashboard() {
           </div>
 
           {/* 历史记录表格（带滚动） */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-h-0">
             <HistoryTable records={mockHistoryRecords} />
           </div>
         </div>
 
         {/* 右侧：公告栏 */}
-        <div className="xl:col-span-1 h-full">
+        <div className="xl:col-span-1 min-h-0">
           <AnnouncementCard announcements={mockAnnouncements} />
         </div>
       </div>
