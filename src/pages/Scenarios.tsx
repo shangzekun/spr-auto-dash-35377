@@ -98,40 +98,37 @@ export default function Scenarios() {
             return (
               <Card
                 key={scenarioId}
-                className={`cursor-pointer transition-smooth hover:scale-105 ${
+                className={`cursor-pointer transition-all duration-300 hover:scale-105 h-auto min-h-[140px] ${
                   selectedScenario === scenarioId
                     ? "bg-primary/10 border-primary/20 shadow-glow"
                     : "bg-gradient-card border-border/50 shadow-card hover:shadow-elegant"
                 }`}
                 onClick={() => setSelectedScenario(scenarioId)}
               >
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
-                      <Icon className="w-4 h-4 text-primary-foreground" />
+                <CardContent className="p-3">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-7 h-7 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
+                      <Icon className="w-3.5 h-3.5 text-primary-foreground" />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium text-sm">{scenario.title}</h3>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-sm truncate">{scenario.title}</h3>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Badge variant="outline" className={getStatusColor(scenario.status)}>
+                    <Badge variant="outline" className={`text-xs ${getStatusColor(scenario.status)}`}>
                       {getStatusLabel(scenario.status)}
                     </Badge>
-                    
-                    {scenario.progress > 0 && (
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">进度</span>
-                          <span>{scenario.progress}%</span>
-                        </div>
-                        <Progress value={scenario.progress} className="h-2" />
-                      </div>
-                    )}
                   </div>
                   
-                  <p className="text-xs text-muted-foreground mt-2 line-clamp-2">
+                  {scenario.progress > 0 && (
+                    <div className="space-y-1 mb-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">进度</span>
+                        <span>{scenario.progress}%</span>
+                      </div>
+                      <Progress value={scenario.progress} className="h-2" />
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-muted-foreground line-clamp-3 h-18">
                     {scenario.description}
                   </p>
                 </CardContent>
