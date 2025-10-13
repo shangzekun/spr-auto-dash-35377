@@ -101,15 +101,23 @@ const moduleConfigs: Record<string, any> = {
   "process-simulation": {
     title: "工艺过程仿真",
     description: "模拟整个工艺流程，优化工艺参数，减少试错成本",
-    status: "disabled",
+    status: "enabled",
     dataInputs: [
-      "设备性能参数",
-      "工艺流程节点数据",
-      "物料传输速度参数",
-      "能量消耗基准值",
-      "环境约束条件"
+      "材料1",
+      "材料2",
+      "材料3",
+      "厚度1",
+      "厚度2",
+      "厚度3",
+      "铆钉",
+      "铆模",
+      "头高"
     ],
-    settings: ["仿真精度", "计算资源", "输出格式", "保存设置"],
+    settings: {
+      simulationSoftwareUrl: "http://simulation-server:8080/api/v1/simulate", // 仿真软件地址
+      parallelTaskCount: 4, // 并行任务数
+      simulationAccuracy: "medium" // 仿真精度（low/medium/high）
+    },
     exampleResult: {
       title: "仿真结果",
       content: [
@@ -301,6 +309,21 @@ export default function Modules() {
       }
     }));
   };
+  // 新增仿真设置变更处理函数
+  const handleSimulationSettingChange = (key: string, value: string | number) => {
+    // 并行任务数需转为数字类型
+    const processedValue = key === "parallelTaskCount" ? Number(value) : value;
+    setModules(prev => ({
+      ...prev,
+      "process-simulation": {
+        ...prev["process-simulation"],
+        settings: {
+          ...prev["process-simulation"].settings,
+          [key]: processedValue
+        }
+      }
+    }));
+  };
 
   // 获取模块对应的图标
   const getModuleIcon = (moduleId) => {
@@ -337,6 +360,18 @@ export default function Modules() {
 
   return (
     <div className="space-y-6 p-4">
+    {/* 新增：嵌入式CSS样式 - 仅作用于当前页面 */}
+    <style jsx>{`
+      /* 隐藏数字输入框的上下调整按钮 */
+      .no-spin-input::-webkit-outer-spin-button,
+      .no-spin-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      .no-spin-input {
+        -moz-appearance: textfield;
+      }
+    `}</style>
       {/* 页面标题区 */}
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
@@ -491,6 +526,7 @@ export default function Modules() {
                                 <div className="flex items-center gap-2 rivet-force-input">
                                   <Input
                                     type="number"
+                                    className="no-spin-input"
                                     value={modules["quality-predict"].settings.rivetForceThreshold}
                                     onChange={(e) => {
                                       const newValue = Number(e.target.value);
@@ -539,6 +575,50 @@ export default function Modules() {
                                 />
                               </div>
                             </div>
+                          ) : selectedModule === "process-simulation" ? (
+                            <>
+                              {/* 仿真软件地址 */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">仿真软件地址</Label>
+                                <Input
+                                  placeholder="输入仿真软件API地址或服务器地址"
+                                  value={modules["process-simulation"].settings.simulationSoftwareUrl}
+                                  onChange={(e) => handleSimulationSettingChange("simulationSoftwareUrl", e.target.value)}
+                                />
+                              </div>
+
+                              {/* 并行任务数 */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">并行任务数</Label>
+                                <Input
+                                  type="number"
+                                  className="no-spin-input"
+                                  min="1"
+                                  max="16"
+                                  placeholder="设置同时运行的仿真任务数（1-16）"
+                                  value={modules["process-simulation"].settings.parallelTaskCount}
+                                  onChange={(e) => handleSimulationSettingChange("parallelTaskCount", e.target.value)}
+                                />
+                              </div>
+
+                              {/* 仿真精度 */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">仿真精度</Label>
+                                <Select
+                                  value={modules["process-simulation"].settings.simulationAccuracy}
+                                  onValueChange={(value) => handleSimulationSettingChange("simulationAccuracy", value)}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="选择仿真精度等级" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="low">低精度（快速计算，适用于初步验证）</SelectItem>
+                                    <SelectItem value="medium">中精度（平衡速度与准确性，默认）</SelectItem>
+                                    <SelectItem value="high">高精度（详细计算，适用于最终验证）</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </>
                           ) : (
                             // 其他模块默认设置
                             <div className="text-sm text-muted-foreground">暂无可配置项</div>
