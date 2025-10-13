@@ -787,7 +787,7 @@ export default function DataImport() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">项目名称</label>
+              <label className="text-sm font-medium">项目名称（建议名称：项目名+项目阶段）</label>
               <Input
                 placeholder="请输入项目名称"
                 value={newProjectName}
