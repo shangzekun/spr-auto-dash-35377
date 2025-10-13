@@ -60,6 +60,7 @@ export function HistoryTable({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/30">
+                <TableHead className="font-medium whitespace-nowrap text-center">序号</TableHead>
                 <TableHead className="font-medium whitespace-nowrap text-center">Material 1</TableHead>
                 <TableHead className="font-medium whitespace-nowrap text-center">Material 2</TableHead>
                 <TableHead className="font-medium whitespace-nowrap text-center">Material 3</TableHead>
@@ -84,6 +85,7 @@ export function HistoryTable({
                   </TableCell>
                 </TableRow> : records.map((record, index) => <TableRow key={record.id} className="hover:bg-muted/30 transition-smooth">
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] text-center">{index + 1}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] text-center">-</TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] text-center">-</TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] text-center">-</TableCell>
                     <TableCell className="text-sm text-muted-foreground whitespace-nowrap overflow-hidden text-ellipsis max-w-[100px] text-center">-</TableCell>
