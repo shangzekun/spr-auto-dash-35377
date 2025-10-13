@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { MultiSelect } from "@/components/ui/multi-select";
 import { toast } from "sonner";
 
 const mockProjects = [
@@ -48,6 +50,7 @@ export default function DataImport() {
   const [editingProjectName, setEditingProjectName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const mainContentRef = useRef<HTMLDivElement>(null);
   const columnWidthsRef = useRef<Record<string, Record<string, number[]>>>({});
   const baseColumnWidthsRef = useRef<number[]>([]); // 存储导入数据栏的列宽作为基准
@@ -404,6 +407,80 @@ export default function DataImport() {
     toast.success("项目已删除");
   };
 
+  /** 单行移动到指定分组 */
+  const handleMoveToGroup = (rowId: string, rowData: string[], categoryId: string, groupId: string) => {
+    const updatedCategories = [...categories];
+    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+    
+    if (targetCatIndex !== -1) {
+      const targetCategory = { ...updatedCategories[targetCatIndex] };
+      
+      if (targetCategory.hasGroups && groupId) {
+        targetCategory.groups = targetCategory.groups.map(g => {
+          if (g.id === groupId) {
+            const updatedItems = [...g.items, { id: rowId, data: rowData }];
+            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+            return { ...g, items: updatedItems };
+          }
+          return g;
+        });
+      } else if (!targetCategory.hasGroups) {
+        const updatedItems = [...(targetCategory.groups[0]?.items || []), { id: rowId, data: rowData }];
+        updateCategoryColumnWidths(categoryId, "default", updatedItems);
+        targetCategory.groups = [{ id: "default", items: updatedItems }];
+      }
+      
+      updatedCategories[targetCatIndex] = targetCategory;
+    }
+
+    setCategories(updatedCategories);
+    setDataRows(prev => prev.filter(row => row.id !== rowId));
+    const remainingRows = dataRows.filter(row => row.id !== rowId);
+    if (!columnWidthsRef.current["dataRows"]) {
+      columnWidthsRef.current["dataRows"] = {};
+    }
+    columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
+    toast.success("数据已添加到分组");
+  };
+
+  /** 批量移动到指定分组 */
+  const handleBatchMove = (categoryId: string, groupId: string) => {
+    const selectedItems = dataRows.filter(row => selectedRows.includes(row.id));
+    const updatedCategories = [...categories];
+    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+    
+    if (targetCatIndex !== -1) {
+      const targetCategory = { ...updatedCategories[targetCatIndex] };
+      
+      if (targetCategory.hasGroups && groupId) {
+        targetCategory.groups = targetCategory.groups.map(g => {
+          if (g.id === groupId) {
+            const updatedItems = [...g.items, ...selectedItems];
+            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+            return { ...g, items: updatedItems };
+          }
+          return g;
+        });
+      } else if (!targetCategory.hasGroups) {
+        const updatedItems = [...(targetCategory.groups[0]?.items || []), ...selectedItems];
+        updateCategoryColumnWidths(categoryId, "default", updatedItems);
+        targetCategory.groups = [{ id: "default", items: updatedItems }];
+      }
+      
+      updatedCategories[targetCatIndex] = targetCategory;
+    }
+
+    setCategories(updatedCategories);
+    setDataRows(prev => prev.filter(row => !selectedRows.includes(row.id)));
+    setSelectedRows([]);
+    const remainingRows = dataRows.filter(row => !selectedRows.includes(row.id));
+    if (!columnWidthsRef.current["dataRows"]) {
+      columnWidthsRef.current["dataRows"] = {};
+    }
+    columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
+    toast.success(`已批量移动 ${selectedItems.length} 条数据`);
+  };
+
   /** 拖拽时滚动处理 */
   useEffect(() => {
     if (!isDragging) return;
@@ -504,25 +581,27 @@ export default function DataImport() {
         {/* 右侧数据导入区域 */}
         <div className="flex-1 flex flex-col">
           <div className="p-6 border-b border-border">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
-                <Upload className="w-4 h-4 text-primary-foreground" />
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
+                  <Upload className="w-4 h-4 text-primary-foreground" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-bold text-foreground">数据导入</h1>
+                  <p className="text-muted-foreground">工艺数据导入与管理</p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-foreground">数据导入</h1>
-                <p className="text-muted-foreground">工艺数据导入与管理</p>
+              
+              <div className="flex items-center gap-4">
+                <Button className="gap-2 hover:scale-105 transition-smooth">
+                  <FileText className="w-4 h-4" />
+                  选择文件导入
+                </Button>
+                <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
+                  <Save className="w-4 h-4" />
+                  保存分组
+                </Button>
               </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              <Button className="gap-2 hover:scale-105 transition-smooth">
-                <FileText className="w-4 h-4" />
-                选择文件导入
-              </Button>
-              <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
-                <Save className="w-4 h-4" />
-                保存分组
-              </Button>
             </div>
           </div>
 
@@ -530,16 +609,47 @@ export default function DataImport() {
             {/* 1. 导入数据 */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg">导入数据</CardTitle>
+                  {selectedRows.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">已选 {selectedRows.length} 条</span>
+                      <MultiSelect
+                        options={categories.flatMap(cat => 
+                          cat.hasGroups 
+                            ? cat.groups.map((g, idx) => ({ 
+                                label: `${cat.title} - 分组${idx + 1}`, 
+                                value: `${cat.id}:${g.id}` 
+                              }))
+                            : [{ label: cat.title, value: `${cat.id}:default` }]
+                        )}
+                        selected={[]}
+                        onChange={(values) => {
+                          if (values.length > 0) {
+                            const [categoryId, groupId] = values[0].split(':');
+                            handleBatchMove(categoryId, groupId);
+                          }
+                        }}
+                        placeholder="批量移动到..."
+                      />
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent className="p-4">
                   <div className="overflow-x-auto w-fit">
                     <table className="border-collapse">
                       <thead>
                         <tr>
+                          <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg" style={{ width: 50 }}>
+                            <Checkbox
+                              checked={selectedRows.length === dataRows.length}
+                              onCheckedChange={(checked) => {
+                                setSelectedRows(checked ? dataRows.map(r => r.id) : []);
+                              }}
+                            />
+                          </th>
                           <th 
-                            className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg"
+                            className="p-3 bg-primary/10 text-center font-medium text-sm"
                             style={{ 
                               width: baseColumnWidthsRef.current[0] || 70,
                               whiteSpace: 'nowrap'
@@ -562,11 +672,11 @@ export default function DataImport() {
                           <th 
                             className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg"
                             style={{ 
-                              width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                              width: 120,
                               whiteSpace: 'nowrap'
                             }}
                           >
-                            &nbsp;
+                            操作
                           </th>
                         </tr>
                       </thead>
@@ -574,15 +684,22 @@ export default function DataImport() {
                         {dataRows.map((row, rowIndex) => (
                           <tr
                             key={row.id}
-                            draggable
-                            onDragStart={(e) => handleDragStart(e, row.id, row.data, "dataRows")}
-                            onDragEnd={handleDragEnd}
-                            className="cursor-move transition-all duration-200 rounded-lg hover:border-primary hover:border-2 hover:bg-primary/5"
-                            style={{ 
-                              borderRadius: '6px',
-                              transition: 'all 0.2s ease'
-                            }}
+                            className={`transition-all duration-200 rounded-lg hover:bg-primary/5 ${
+                              selectedRows.includes(row.id) ? 'bg-primary/10' : ''
+                            }`}
                           >
+                            <td className="p-3 text-center" style={{ width: 50 }}>
+                              <Checkbox
+                                checked={selectedRows.includes(row.id)}
+                                onCheckedChange={(checked) => {
+                                  setSelectedRows(prev => 
+                                    checked 
+                                      ? [...prev, row.id]
+                                      : prev.filter(id => id !== row.id)
+                                  );
+                                }}
+                              />
+                            </td>
                             <td 
                               className="p-3 text-center text-sm"
                               style={{ 
@@ -607,11 +724,28 @@ export default function DataImport() {
                             <td 
                               className="p-3 text-center"
                               style={{ 
-                                width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                width: 120,
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              &nbsp;
+                              <MultiSelect
+                                options={categories.flatMap(cat => 
+                                  cat.hasGroups 
+                                    ? cat.groups.map((g, idx) => ({ 
+                                        label: `${cat.title} - 分组${idx + 1}`, 
+                                        value: `${cat.id}:${g.id}` 
+                                      }))
+                                    : [{ label: cat.title, value: `${cat.id}:default` }]
+                                )}
+                                selected={[]}
+                                onChange={(values) => {
+                                  if (values.length > 0) {
+                                    const [categoryId, groupId] = values[0].split(':');
+                                    handleMoveToGroup(row.id, row.data, categoryId, groupId);
+                                  }
+                                }}
+                                placeholder="添加到..."
+                              />
                             </td>
                           </tr>
                         ))}
@@ -676,9 +810,16 @@ export default function DataImport() {
                             onDragOver={handleDragOver}
                             className="border-2 border-dashed border-border/50 rounded-lg p-4 pt-6 pb-2 min-h-32 relative"
                           >
-                            {/* 组编号显示在左上角 */}
-                            <div className="absolute top-2 left-2 text-xs font-medium text-muted-foreground">
-                              组{groupIndex + 1}
+                            {/* 组编号与数量显示在左上角 */}
+                            <div className="absolute top-2 left-2 flex items-center gap-2">
+                              <span className="text-xs font-medium text-muted-foreground">
+                                组{groupIndex + 1}
+                              </span>
+                              {group.items.length > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {group.items.length} 条
+                                </Badge>
+                              )}
                             </div>
                             
                             {/* 删除按钮显示在右上角，不占一行 */}

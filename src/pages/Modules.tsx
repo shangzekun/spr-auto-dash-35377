@@ -361,7 +361,7 @@ export default function Modules() {
   return (
     <div className="space-y-6 p-4">
     {/* 新增：嵌入式CSS样式 - 仅作用于当前页面 */}
-    <style jsx>{`
+    <style>{`
       /* 隐藏数字输入框的上下调整按钮 */
       .no-spin-input::-webkit-outer-spin-button,
       .no-spin-input::-webkit-inner-spin-button {
