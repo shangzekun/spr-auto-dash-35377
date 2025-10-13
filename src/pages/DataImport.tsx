@@ -22,7 +22,18 @@ const mockDataRows = [
   { id: "1", data: ["LAC340Y410T", "6000-BR", "", "1.2", "1.5", "", "C5.3x5.0H2", "M260238"] },
   { id: "2", data: ["6000-BR", "6000-BR", "", "2.0", "2.0", "", "C5.3x6.0H2", "M260468"] },
   { id: "3", data: ["DPC420Y780T", "DC-N2 F", "", "1.8", "3.0", "", "HSS5.5x6.0H5", "M260406"] },
-  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "1.5", "1.2", "3.0", "C5.3x7.0H4", "M260412"] }
+  { id: "4", data: ["LAC340Y410T", "LAC340Y410T", "DC-N2 F", "1.5", "1.2", "3.0", "C5.3x7.0H4", "M260412"] },
+  { id: "5", data: ["HC340LA", "6000-BR", "", "1.0", "1.8", "", "C5.3x5.5H2", "M260301"] },
+  { id: "6", data: ["DPC420Y780T", "LAC340Y410T", "", "1.5", "1.5", "", "HSS5.5x5.0H3", "M260502"] },
+  { id: "7", data: ["6000-BR", "DC-N2 F", "HC340LA", "2.0", "2.5", "1.0", "C5.3x6.5H4", "M260618"] },
+  { id: "8", data: ["LAC340Y410T", "DPC420Y780T", "", "1.2", "1.8", "", "HSS5.5x6.5H5", "M260721"] },
+  { id: "9", data: ["DC-N2 F", "6000-BR", "", "3.0", "2.0", "", "C5.3x7.5H3", "M260834"] },
+  { id: "10", data: ["HC340LA", "LAC340Y410T", "", "1.0", "1.5", "", "C5.3x5.0H2", "M260945"] },
+  { id: "11", data: ["DPC420Y780T", "6000-BR", "DC-N2 F", "1.8", "2.0", "2.5", "HSS5.5x7.0H6", "M261056"] },
+  { id: "12", data: ["LAC340Y410T", "HC340LA", "", "1.5", "1.0", "", "C5.3x6.0H3", "M261167"] },
+  { id: "13", data: ["6000-BR", "DPC420Y780T", "", "2.0", "1.8", "", "HSS5.5x5.5H4", "M261278"] },
+  { id: "14", data: ["DC-N2 F", "LAC340Y410T", "6000-BR", "2.5", "1.2", "2.0", "C5.3x8.0H5", "M261389"] },
+  { id: "15", data: ["HC340LA", "DPC420Y780T", "", "1.0", "1.8", "", "HSS5.5x6.0H3", "M261490"] }
 ];
 
 type CategoryGroup = {
@@ -646,6 +657,7 @@ export default function DataImport() {
                               onCheckedChange={(checked) => {
                                 setSelectedRows(checked ? dataRows.map(r => r.id) : []);
                               }}
+                              className="rounded-sm"
                             />
                           </th>
                           <th 
@@ -698,6 +710,7 @@ export default function DataImport() {
                                       : prev.filter(id => id !== row.id)
                                   );
                                 }}
+                                className="rounded-sm"
                               />
                             </td>
                             <td 
@@ -792,11 +805,11 @@ export default function DataImport() {
                             <th 
                               className="p-3 bg-primary/10 text-center font-medium text-sm rounded-r-lg"
                               style={{ 
-                                width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                width: 120,
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              &nbsp;
+                              操作
                             </th>
                           </tr>
                         </thead>
@@ -844,14 +857,7 @@ export default function DataImport() {
                                   {group.items.map((item, itemIndex) => (
                                     <tr
                                       key={item.id}
-                                      draggable
-                                      onDragStart={(e) => handleDragStart(e, item.id, item.data, category.id, group.id)}
-                                      onDragEnd={handleDragEnd}
-                                      className="cursor-move transition-all duration-200 rounded-lg hover:border-primary hover:border-2 hover:bg-primary/5"
-                                      style={{ 
-                                        borderRadius: '6px',
-                                        transition: 'all 0.2s ease'
-                                      }}
+                                      className="transition-all duration-200 rounded-lg hover:bg-primary/5"
                                     >
                                       <td 
                                         className="p-3 text-center text-sm"
@@ -877,18 +883,33 @@ export default function DataImport() {
                                       <td 
                                         className="p-3 text-center"
                                         style={{ 
-                                          width: baseColumnWidthsRef.current[dataHeaders.length + 1] || 60,
+                                          width: 120,
                                           whiteSpace: 'nowrap'
                                         }}
                                       >
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
-                                          onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
-                                        >
-                                          <X className="h-3 w-3" />
-                                        </Button>
+                                        <MultiSelect
+                                          options={categories.flatMap(cat => 
+                                            cat.hasGroups 
+                                              ? cat.groups
+                                                  .filter(g => !(cat.id === category.id && g.id === group.id))
+                                                  .map((g, idx) => ({ 
+                                                    label: `${cat.title} - 分组${cat.groups.indexOf(g) + 1}`, 
+                                                    value: `${cat.id}:${g.id}` 
+                                                  }))
+                                              : cat.id !== category.id 
+                                                ? [{ label: cat.title, value: `${cat.id}:default` }]
+                                                : []
+                                          )}
+                                          selected={[]}
+                                          onChange={(values) => {
+                                            if (values.length > 0) {
+                                              const [targetCategoryId, targetGroupId] = values[0].split(':');
+                                              handleMoveToGroup(item.id, item.data, targetCategoryId, targetGroupId);
+                                              handleRemoveFromCategory(category.id, group.id, item.id);
+                                            }
+                                          }}
+                                          placeholder="移动到..."
+                                        />
                                       </td>
                                     </tr>
                                   ))}
