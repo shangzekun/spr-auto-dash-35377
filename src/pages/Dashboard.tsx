@@ -66,6 +66,30 @@ const mockAnnouncements = [
     type: "info" as const,
     timestamp: "2024-01-12 16:45",
   },
+  {
+    id: "4",
+    title: "系统维护通知",
+    content:
+      "系统将于2025-08-25 18:00进行维护，请关注维护时间，避免影响业务使用。",
+    type: "info" as const,
+    timestamp: "2025-08-24 09:00",
+  },
+  {
+    id: "5",
+    title: "BUG修复",
+    content:
+      "修复数据导入时会出现数据丢失的BUG。",
+    type: "info" as const,
+    timestamp: "2024-01-12 16:45",
+  },
+  {
+    id: "6",
+    title: "功能优化",
+    content:
+      "优化连接质量预测模型，质量预测精确度进一步提升。",
+    type: "info" as const,
+    timestamp: "2024-01-12 16:45",
+  },
 ];
 
 const mockHistoryRecords = [
