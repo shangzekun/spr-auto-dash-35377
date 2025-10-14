@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, X } from "lucide-react";
+import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,33 +38,148 @@ const mockDataRows = [
 
 type CategoryGroup = {
   id: string;
+  name: string; // 组名
   items: Array<{ id: string; data: string[] }>;
+  selectedItems: string[];
 };
 
-const categoryHeaders = [
-  { id: "recommended", title: "默认推荐", groups: [{ id: "default", items: [] }], hasGroups: false },
-  { id: "double-pin", title: "双钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true },
-  { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", items: [] }], hasGroups: true }
+type Category = {
+  id: string;
+  title: string;
+  groups: CategoryGroup[];
+  hasGroups: boolean;
+  allSelected: boolean;
+  partiallySelected: boolean;
+};
+
+const initialCategories: Category[] = [
+  { id: "recommended", title: "默认推荐", groups: [{ id: "default", name: "默认组", items: [], selectedItems: [] }], hasGroups: false, allSelected: false, partiallySelected: false },
+  { id: "double-pin", title: "双钉共模", groups: [{ id: "group-1", name: "分组1", items: [], selectedItems: [] }], hasGroups: true, allSelected: false, partiallySelected: false },
+  { id: "shared-pin", title: "共钉共模", groups: [{ id: "group-1", name: "分组1", items: [], selectedItems: [] }], hasGroups: true, allSelected: false, partiallySelected: false }
 ];
 
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
   const [projects, setProjects] = useState(mockProjects);
   const [dataRows, setDataRows] = useState(mockDataRows);
-  const [categories, setCategories] = useState(categoryHeaders);
-  const [draggedItem, setDraggedItem] = useState<{ id: string; data: string[]; source: string; groupId?: string } | null>(null);
+  const [categories, setCategories] = useState<Category[]>(initialCategories);
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
   const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState("");
-  const [isDragging, setIsDragging] = useState(false);
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [allDataSelected, setAllDataSelected] = useState(false);
+  const [partiallyDataSelected, setPartiallyDataSelected] = useState(false);
+  const [deleteDataDialogOpen, setDeleteDataDialogOpen] = useState(false);
+  const [dataToDelete, setDataToDelete] = useState<string | null>(null);
+  // 组名编辑状态
+  const [editingGroupName, setEditingGroupName] = useState<{ categoryId: string; groupId: string; name: string } | null>(null);
+  const groupNameInputRef = useRef<HTMLInputElement>(null);
+  
   const mainContentRef = useRef<HTMLDivElement>(null);
   const columnWidthsRef = useRef<Record<string, Record<string, number[]>>>({});
-  const baseColumnWidthsRef = useRef<number[]>([]); // 存储导入数据栏的列宽作为基准
+  const baseColumnWidthsRef = useRef<number[]>([]);
+
+  // 更新分类的选中状态
+  const updateCategorySelectionState = (categoryId: string) => {
+    setCategories(prev => {
+      const updatedCategories = [...prev];
+      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+      
+      if (catIndex === -1) return updatedCategories;
+      
+      const category = { ...updatedCategories[catIndex] };
+      const allItemsCount = category.groups.reduce((sum, group) => sum + group.items.length, 0);
+      const allSelectedCount = category.groups.reduce((sum, group) => sum + group.selectedItems.length, 0);
+      
+      category.allSelected = allItemsCount > 0 && allItemsCount === allSelectedCount;
+      category.partiallySelected = allSelectedCount > 0 && allSelectedCount < allItemsCount;
+      
+      updatedCategories[catIndex] = category;
+      return updatedCategories;
+    });
+  };
+
+  // 处理分类中项目的选择
+  const handleCategoryItemSelect = (categoryId: string, groupId: string, itemId: string, checked: boolean) => {
+    setCategories(prev => {
+      const updatedCategories = [...prev];
+      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+      
+      if (catIndex === -1) return updatedCategories;
+      
+      const category = { ...updatedCategories[catIndex] };
+      category.groups = category.groups.map(group => {
+        if (group.id === groupId) {
+          const updatedSelected = checked 
+            ? [...group.selectedItems, itemId]
+            : group.selectedItems.filter(id => id !== itemId);
+          return { ...group, selectedItems: updatedSelected };
+        }
+        return group;
+      });
+      
+      updatedCategories[catIndex] = category;
+      return updatedCategories;
+    });
+    
+    setTimeout(() => updateCategorySelectionState(categoryId), 0);
+  };
+
+  // 处理分类的全选
+  const handleCategorySelectAll = (categoryId: string, checked: boolean) => {
+    setCategories(prev => {
+      const updatedCategories = [...prev];
+      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+      
+      if (catIndex === -1) return updatedCategories;
+      
+      const category = { ...updatedCategories[catIndex] };
+      category.groups = category.groups.map(group => {
+        const selected = checked ? group.items.map(item => item.id) : [];
+        return { ...group, selectedItems: selected };
+      });
+      
+      category.allSelected = checked;
+      category.partiallySelected = false;
+      
+      updatedCategories[catIndex] = category;
+      return updatedCategories;
+    });
+  };
+
+  // 处理分组的全选
+  const handleGroupSelectAll = (categoryId: string, groupId: string, checked: boolean) => {
+    setCategories(prev => {
+      const updatedCategories = [...prev];
+      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+      
+      if (catIndex === -1) return updatedCategories;
+      
+      const category = { ...updatedCategories[catIndex] };
+      category.groups = category.groups.map(group => {
+        if (group.id === groupId) {
+          const selected = checked ? group.items.map(item => item.id) : [];
+          return { ...group, selectedItems: selected };
+        }
+        return group;
+      });
+      
+      updatedCategories[catIndex] = category;
+      return updatedCategories;
+    });
+    
+    setTimeout(() => updateCategorySelectionState(categoryId), 0);
+  };
+
+  // 更新导入数据的选择状态
+  useEffect(() => {
+    setAllDataSelected(dataRows.length > 0 && selectedRows.length === dataRows.length);
+    setPartiallyDataSelected(selectedRows.length > 0 && selectedRows.length < dataRows.length);
+  }, [selectedRows, dataRows]);
 
   // 同步所有分组列宽到基准列宽
   const syncAllGroupWidthsToBase = () => {
@@ -73,13 +188,11 @@ export default function DataImport() {
     const updatedCategories = [...categories];
     updatedCategories.forEach((category, catIndex) => {
       category.groups.forEach((group, groupIndex) => {
-        // 强制使用基准列宽更新当前分组
         if (!columnWidthsRef.current[category.id]) {
           columnWidthsRef.current[category.id] = {};
         }
         columnWidthsRef.current[category.id][group.id] = [...baseColumnWidthsRef.current];
         
-        // 浅拷贝触发更新
         updatedCategories[catIndex].groups[groupIndex] = {
           ...group,
           items: [...group.items]
@@ -91,7 +204,6 @@ export default function DataImport() {
 
   // 初始化列宽
   useEffect(() => {
-    // 1. 先计算导入数据栏的列宽作为基准
     const baseWidths = calculateColumnWidths(dataRows);
     baseColumnWidthsRef.current = baseWidths;
     if (!columnWidthsRef.current["dataRows"]) {
@@ -99,7 +211,6 @@ export default function DataImport() {
     }
     columnWidthsRef.current["dataRows"]["default"] = baseWidths;
     
-    // 2. 强制同步所有分组列宽到基准列宽
     syncAllGroupWidthsToBase();
   }, []);
 
@@ -113,19 +224,18 @@ export default function DataImport() {
       }
       columnWidthsRef.current["dataRows"]["default"] = baseWidths;
       
-      // 强制同步所有分组列宽
       syncAllGroupWidthsToBase();
     }
   }, [dataRows]);
 
-  // 计算列宽 - 强制参考基准列宽
+  // 计算列宽
   const calculateColumnWidths = (items: Array<{ id: string; data: string[] }>) => {
     const minBaseWidth = 80;
-    const widths = new Array(dataHeaders.length + 2).fill(0);
-    widths[0] = 70; // 序号列固定宽度
-    widths[widths.length - 1] = 60; // 操作列固定宽度
+    const widths = new Array(dataHeaders.length + 3).fill(0);
+    widths[0] = 50; // 选择框列固定宽度
+    widths[1] = 70; // 序号列固定宽度
+    widths[widths.length - 1] = 120; // 操作列固定宽度
 
-    // 计算标题宽度
     dataHeaders.forEach((header, index) => {
       const tempSpan = document.createElement('span');
       tempSpan.style.visibility = 'hidden';
@@ -136,13 +246,12 @@ export default function DataImport() {
       tempSpan.textContent = header;
       document.body.appendChild(tempSpan);
       
-      const headerWidth = tempSpan.offsetWidth + 20; // 增加内边距
+      const headerWidth = tempSpan.offsetWidth + 20;
       document.body.removeChild(tempSpan);
       
-      widths[index + 1] = Math.max(headerWidth, minBaseWidth);
+      widths[index + 2] = Math.max(headerWidth, minBaseWidth);
     });
 
-    // 计算内容宽度（如果有数据）
     if (items.length > 0) {
       items.forEach(item => {
         item.data.forEach((cell, index) => {
@@ -155,28 +264,26 @@ export default function DataImport() {
           tempSpan.textContent = cell || ' ';
           document.body.appendChild(tempSpan);
           
-          const cellWidth = tempSpan.offsetWidth + 20; // 增加内边距
+          const cellWidth = tempSpan.offsetWidth + 20;
           document.body.removeChild(tempSpan);
           
-          if (cellWidth > widths[index + 1]) {
-            widths[index + 1] = cellWidth;
+          if (cellWidth > widths[index + 2]) {
+            widths[index + 2] = cellWidth;
           }
         });
       });
     }
 
-    // 强制参考基准列宽（即使是空数据）
     if (baseColumnWidthsRef.current.length > 0) {
       return widths.map((w, i) => Math.max(w, baseColumnWidthsRef.current[i] || w));
     }
     return widths;
   };
 
-  // 更新分类列宽 - 强制使用基准列宽
+  // 更新分类列宽
   const updateCategoryColumnWidths = (categoryId: string, groupId: string, updatedItems: Array<{ id: string; data: string[] }>) => {
     let widths = calculateColumnWidths(updatedItems);
     
-    // 强制覆盖为基准列宽
     if (baseColumnWidthsRef.current.length > 0) {
       widths = [...baseColumnWidthsRef.current];
     }
@@ -185,91 +292,6 @@ export default function DataImport() {
       columnWidthsRef.current[categoryId] = {};
     }
     columnWidthsRef.current[categoryId][groupId] = widths;
-  };
-
-  /** 拖拽开始 */
-  const handleDragStart = (e: React.DragEvent, rowId: string, data: string[], source: string, groupId?: string) => {
-    setDraggedItem({ id: rowId, data, source, groupId });
-    setIsDragging(true);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", rowId);
-    mainContentRef.current?.focus();
-    document.body.classList.add('dragging-active');
-  };
-
-  /** 拖拽结束 */
-  const handleDragEnd = () => {
-    setIsDragging(false);
-    setDraggedItem(null);
-    document.body.classList.remove('dragging-active');
-  };
-
-  /** 拖拽到组 */
-  const handleDrop = (e: React.DragEvent, categoryId: string, groupId?: string) => {
-    e.preventDefault();
-    if (!draggedItem || !groupId) return;
-
-    const updatedCategories = [...categories];
-    let updatedItems: Array<{ id: string; data: string[] }> = [];
-    
-    // 从原组中移除数据
-    if (draggedItem.source !== "dataRows" && draggedItem.groupId) {
-      const sourceCatIndex = updatedCategories.findIndex(cat => cat.id === draggedItem.source);
-      if (sourceCatIndex !== -1) {
-        updatedCategories[sourceCatIndex].groups = updatedCategories[sourceCatIndex].groups.map(g => {
-          if (g.id === draggedItem.groupId) {
-            const updatedSourceItems = g.items.filter(item => item.id !== draggedItem.id);
-            updateCategoryColumnWidths(draggedItem.source, draggedItem.groupId, updatedSourceItems);
-            return { ...g, items: updatedSourceItems };
-          }
-          return g;
-        });
-      }
-    }
-
-    // 向目标组添加数据
-    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-    if (targetCatIndex !== -1) {
-      const targetCategory = { ...updatedCategories[targetCatIndex] };
-      
-      if (targetCategory.hasGroups && groupId) {
-        targetCategory.groups = targetCategory.groups.map(g => {
-          if (g.id === groupId) {
-            updatedItems = [...g.items, { id: draggedItem.id, data: draggedItem.data }];
-            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
-            return { ...g, items: updatedItems };
-          }
-          return g;
-        });
-      } else if (!targetCategory.hasGroups) {
-        updatedItems = [...(targetCategory.groups[0]?.items || []), { id: draggedItem.id, data: draggedItem.data }];
-        updateCategoryColumnWidths(categoryId, "default", updatedItems);
-        targetCategory.groups = [{ 
-          id: "default", 
-          items: updatedItems 
-        }];
-      }
-      
-      updatedCategories[targetCatIndex] = targetCategory;
-    }
-
-    // 源为导入表时删除原行
-    if (draggedItem.source === "dataRows") {
-      setDataRows(prev => prev.filter(row => row.id !== draggedItem.id));
-      const remainingRows = dataRows.filter(row => row.id !== draggedItem.id);
-      if (!columnWidthsRef.current["dataRows"]) {
-        columnWidthsRef.current["dataRows"] = {};
-      }
-      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
-    }
-
-    setCategories(updatedCategories);
-    handleDragEnd();
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
   };
 
   /** 打开删除组对话框 */
@@ -283,7 +305,6 @@ export default function DataImport() {
     if (!deleteGroupInfo) return;
     const { categoryId, groupId } = deleteGroupInfo;
 
-    // 组内数据放回导入区
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
     if (group?.items.length) {
@@ -294,7 +315,6 @@ export default function DataImport() {
       columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, ...group.items]);
     }
 
-    // 删除组并清除列宽缓存
     setCategories(prev =>
       prev.map(cat =>
         cat.id === categoryId
@@ -315,7 +335,7 @@ export default function DataImport() {
     toast.success("分组删除成功");
   };
 
-  /** 从组中移除单行 */
+  /** 从组中移除单行（移回导入区） */
   const handleRemoveFromCategory = (categoryId: string, groupId: string, itemId: string) => {
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
@@ -328,7 +348,11 @@ export default function DataImport() {
             ...cat,
             groups: cat.groups.map(g =>
               g.id === groupId 
-                ? { ...g, items: g.items.filter(i => i.id !== itemId) } 
+                ? { 
+                    ...g, 
+                    items: g.items.filter(i => i.id !== itemId), // 从原分组删除
+                    selectedItems: g.selectedItems.filter(id => id !== itemId)
+                  } 
                 : g
             )
           }
@@ -338,13 +362,57 @@ export default function DataImport() {
     setCategories(updatedGroups);
     setDataRows(prev => [...prev, item]);
 
-    // 更新列宽
     const updatedGroupItems = group.items.filter(i => i.id !== itemId);
     updateCategoryColumnWidths(categoryId, groupId, updatedGroupItems);
     if (!columnWidthsRef.current["dataRows"]) {
       columnWidthsRef.current["dataRows"] = {};
     }
     columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, item]);
+    
+    updateCategorySelectionState(categoryId);
+    toast.success("数据已移回导入区");
+  };
+
+  /** 从分类中批量移除选中数据（移回导入区） */
+  const handleBulkRemoveFromCategory = (categoryId: string) => {
+    const category = categories.find(cat => cat.id === categoryId);
+    if (!category) return;
+    
+    const selectedItems: Array<{ id: string; data: string[] }> = [];
+    
+    const updatedCategories = categories.map(cat => {
+      if (cat.id !== categoryId) return cat;
+      
+      const updatedGroups = cat.groups.map(group => {
+        const itemsToRemove = group.items.filter(item => group.selectedItems.includes(item.id));
+        selectedItems.push(...itemsToRemove);
+        
+        // 从原分组删除选中数据
+        return {
+          ...group,
+          items: group.items.filter(item => !group.selectedItems.includes(item.id)),
+          selectedItems: []
+        };
+      });
+      
+      return {
+        ...cat,
+        groups: updatedGroups,
+        allSelected: false,
+        partiallySelected: false
+      };
+    });
+    
+    setDataRows(prev => [...prev, ...selectedItems]);
+    if (selectedItems.length > 0) {
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
+      }
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, ...selectedItems]);
+    }
+    
+    setCategories(updatedCategories);
+    toast.success(`已将 ${selectedItems.length} 条数据移回导入区`);
   };
 
   /** 添加新组 */
@@ -357,17 +425,56 @@ export default function DataImport() {
         cat.id === categoryId
           ? { 
               ...cat, 
-              groups: [...cat.groups, { id: newGroupId, items: [] }] 
+              groups: [...cat.groups, { id: newGroupId, name: `分组${groupCount + 1}`, items: [], selectedItems: [] }] 
             }
           : cat
       )
     );
     
-    // 新组直接使用基准列宽
     if (!columnWidthsRef.current[categoryId]) {
       columnWidthsRef.current[categoryId] = {};
     }
     columnWidthsRef.current[categoryId][newGroupId] = [...baseColumnWidthsRef.current];
+  };
+
+  /** 开始编辑组名 */
+  const handleStartEditGroupName = (categoryId: string, groupId: string, currentName: string) => {
+    setEditingGroupName({ categoryId, groupId, name: currentName });
+    
+    // 在下一次渲染后聚焦输入框
+    setTimeout(() => {
+      groupNameInputRef.current?.focus();
+    }, 0);
+  };
+
+  /** 保存组名编辑 */
+  const handleSaveGroupName = () => {
+    if (!editingGroupName) return;
+    
+    const { categoryId, groupId, name } = editingGroupName;
+    const trimmedName = name.trim() || `分组${Date.now().toString().slice(-4)}`;
+    
+    setCategories(prev => 
+      prev.map(category => 
+        category.id === categoryId
+          ? {
+              ...category,
+              groups: category.groups.map(group => 
+                group.id === groupId
+                  ? { ...group, name: trimmedName }
+                  : group
+              )
+            }
+          : category
+      )
+    );
+    
+    setEditingGroupName(null);
+  };
+
+  /** 取消组名编辑 */
+  const handleCancelEditGroupName = () => {
+    setEditingGroupName(null);
   };
 
   /** 创建新项目 */
@@ -418,112 +525,220 @@ export default function DataImport() {
     toast.success("项目已删除");
   };
 
-  /** 单行移动到指定分组 */
-  const handleMoveToGroup = (rowId: string, rowData: string[], categoryId: string, groupId: string) => {
-    const updatedCategories = [...categories];
-    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-    
-    if (targetCatIndex !== -1) {
-      const targetCategory = { ...updatedCategories[targetCatIndex] };
+  /** 单行移动到指定分组 - 核心修改：确保从源分组彻底删除 */
+  const handleMoveToGroup = (rowId: string, rowData: string[], categoryId: string, groupId: string, sourceCategoryId?: string, sourceGroupId?: string) => {
+    // 1. 从源位置删除数据（优先级：先处理分组内移动，再处理导入区移动）
+    if (sourceCategoryId && sourceGroupId) {
+      // 从源分组删除数据
+      setCategories(prev => 
+        prev.map(cat => {
+          if (cat.id !== sourceCategoryId) return cat;
+          
+          // 遍历源分类下的所有组，找到源组并过滤数据
+          const updatedGroups = cat.groups.map(g => {
+            if (g.id !== sourceGroupId) return g;
+            
+            // 核心：过滤掉要移动的rowId，确保源组不再包含该数据
+            const updatedItems = g.items.filter(item => item.id !== rowId);
+            // 同步删除源组的选中状态（避免残留选中）
+            const updatedSelected = g.selectedItems.filter(id => id !== rowId);
+            
+            // 更新源组列宽（基于删除后的数据）
+            updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
+            
+            return { ...g, items: updatedItems, selectedItems: updatedSelected };
+          });
+          
+          return { ...cat, groups: updatedGroups };
+        })
+      );
       
-      if (targetCategory.hasGroups && groupId) {
-        targetCategory.groups = targetCategory.groups.map(g => {
-          if (g.id === groupId) {
-            const updatedItems = [...g.items, { id: rowId, data: rowData }];
-            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
-            return { ...g, items: updatedItems };
-          }
-          return g;
-        });
-      } else if (!targetCategory.hasGroups) {
-        const updatedItems = [...(targetCategory.groups[0]?.items || []), { id: rowId, data: rowData }];
-        updateCategoryColumnWidths(categoryId, "default", updatedItems);
-        targetCategory.groups = [{ id: "default", items: updatedItems }];
+      // 同步更新源分类的选中状态（避免全选/半选状态异常）
+      updateCategorySelectionState(sourceCategoryId);
+    } else {
+      // 从导入区删除数据
+      setDataRows(prev => prev.filter(row => row.id !== rowId));
+      setSelectedRows(prev => prev.filter(id => id !== rowId));
+      
+      // 更新导入区列宽（基于删除后的数据）
+      const remainingRows = dataRows.filter(row => row.id !== rowId);
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
       }
-      
-      updatedCategories[targetCatIndex] = targetCategory;
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
     }
 
-    setCategories(updatedCategories);
-    setDataRows(prev => prev.filter(row => row.id !== rowId));
-    const remainingRows = dataRows.filter(row => row.id !== rowId);
-    if (!columnWidthsRef.current["dataRows"]) {
-      columnWidthsRef.current["dataRows"] = {};
-    }
-    columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
-    toast.success("数据已添加到分组");
+    // 2. 添加数据到目标分组
+    setCategories(prev => 
+      prev.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        
+        // 遍历目标分类下的所有组，找到目标组并添加数据
+        const updatedGroups = cat.groups.map(g => {
+          if (g.id !== groupId) return g;
+          
+          // 核心：添加数据到目标组（确保不重复添加）
+          const isAlreadyExists = g.items.some(item => item.id === rowId);
+          const updatedItems = isAlreadyExists 
+            ? g.items 
+            : [...g.items, { id: rowId, data: rowData }];
+          
+          // 更新目标组列宽（基于添加后的数据）
+          updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+          
+          return { ...g, items: updatedItems };
+        });
+        
+        return { ...cat, groups: updatedGroups };
+      })
+    );
+    
+    // 同步更新目标分类的选中状态
+    updateCategorySelectionState(categoryId);
+    toast.success("数据已移动到目标分组");
   };
 
-  /** 批量移动到指定分组 */
-  const handleBatchMove = (categoryId: string, groupId: string) => {
-    const selectedItems = dataRows.filter(row => selectedRows.includes(row.id));
-    const updatedCategories = [...categories];
-    const targetCatIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
+  /** 批量移动到指定分组 - 核心修改：确保从源分组彻底删除选中数据 */
+  const handleBatchMove = (categoryId: string, groupId: string, sourceCategoryId?: string, sourceGroupId?: string) => {
+    // 1. 从源位置删除选中数据
+    let selectedItems: Array<{ id: string; data: string[] }> = [];
     
-    if (targetCatIndex !== -1) {
-      const targetCategory = { ...updatedCategories[targetCatIndex] };
+    if (sourceCategoryId && sourceGroupId) {
+      // 从源分组获取并删除选中数据
+      setCategories(prev => 
+        prev.map(cat => {
+          if (cat.id !== sourceCategoryId) return cat;
+          
+          const updatedGroups = cat.groups.map(g => {
+            if (g.id !== sourceGroupId) return g;
+            
+            // 核心：获取源组中所有选中的items
+            selectedItems = g.items.filter(item => g.selectedItems.includes(item.id));
+            // 核心：过滤掉选中的items，确保源组不再包含
+            const updatedItems = g.items.filter(item => !g.selectedItems.includes(item.id));
+            
+            // 更新源组列宽（基于删除后的数据）
+            updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
+            
+            return { 
+              ...g, 
+              items: updatedItems, 
+              selectedItems: [] // 清空源组选中状态
+            };
+          });
+          
+          return { ...cat, groups: updatedGroups };
+        })
+      );
       
-      if (targetCategory.hasGroups && groupId) {
-        targetCategory.groups = targetCategory.groups.map(g => {
-          if (g.id === groupId) {
-            const updatedItems = [...g.items, ...selectedItems];
-            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
-            return { ...g, items: updatedItems };
-          }
-          return g;
-        });
-      } else if (!targetCategory.hasGroups) {
-        const updatedItems = [...(targetCategory.groups[0]?.items || []), ...selectedItems];
-        updateCategoryColumnWidths(categoryId, "default", updatedItems);
-        targetCategory.groups = [{ id: "default", items: updatedItems }];
+      // 同步更新源分类的选中状态
+      updateCategorySelectionState(sourceCategoryId);
+    } else {
+      // 从导入区获取并删除选中数据
+      selectedItems = dataRows.filter(row => selectedRows.includes(row.id));
+      setDataRows(prev => prev.filter(row => !selectedRows.includes(row.id)));
+      setSelectedRows([]); // 清空导入区选中状态
+      
+      // 更新导入区列宽
+      const remainingRows = dataRows.filter(row => !selectedRows.includes(row.id));
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
       }
-      
-      updatedCategories[targetCatIndex] = targetCategory;
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
     }
 
-    setCategories(updatedCategories);
+    // 2. 批量添加数据到目标分组
+    if (selectedItems.length > 0) {
+      setCategories(prev => 
+        prev.map(cat => {
+          if (cat.id !== categoryId) return cat;
+          
+          const updatedGroups = cat.groups.map(g => {
+            if (g.id !== groupId) return g;
+            
+            // 核心：过滤掉已存在的数据（避免重复添加）
+            const newItems = selectedItems.filter(newItem => 
+              !g.items.some(existing => existing.id === newItem.id)
+            );
+            const updatedItems = [...g.items, ...newItems];
+            
+            // 更新目标组列宽
+            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+            
+            return { ...g, items: updatedItems };
+          });
+          
+          return { ...cat, groups: updatedGroups };
+        })
+      );
+      
+      // 同步更新目标分类的选中状态
+      updateCategorySelectionState(categoryId);
+      toast.success(`已批量移动 ${selectedItems.length} 条数据到目标分组`);
+    } else {
+      toast.warning("未选中任何数据，无法批量移动");
+    }
+  };
+
+  /** 打开删除数据对话框 */
+  const handleOpenDeleteDataDialog = (rowId: string) => {
+    setDataToDelete(rowId);
+    setDeleteDataDialogOpen(true);
+  };
+
+  /** 确认删除数据 */
+  const handleConfirmDeleteData = () => {
+    if (!dataToDelete) return;
+    
+    setDataRows(prev => prev.filter(row => row.id !== dataToDelete));
+    setSelectedRows(prev => prev.filter(id => id !== dataToDelete));
+    
+    setCategories(prev => {
+      return prev.map(category => {
+        const updatedGroups = category.groups.map(group => ({
+          ...group,
+          items: group.items.filter(item => item.id !== dataToDelete), // 从所有分组中删除
+          selectedItems: group.selectedItems.filter(id => id !== dataToDelete)
+        }));
+        
+        return {
+          ...category,
+          groups: updatedGroups
+        };
+      });
+    });
+    
+    setDeleteDataDialogOpen(false);
+    setDataToDelete(null);
+    toast.success("数据已从项目中删除");
+  };
+
+  /** 批量删除导入区选中的数据 */
+  const handleBulkDeleteData = () => {
+    if (selectedRows.length === 0) return;
+    
     setDataRows(prev => prev.filter(row => !selectedRows.includes(row.id)));
+    
+    setCategories(prev => {
+      return prev.map(category => {
+        const updatedGroups = category.groups.map(group => ({
+          ...group,
+          items: group.items.filter(item => !selectedRows.includes(item.id)), // 从所有分组中删除
+          selectedItems: group.selectedItems.filter(id => !selectedRows.includes(item.id))
+        }));
+        
+        return {
+          ...category,
+          groups: updatedGroups,
+          allSelected: false,
+          partiallySelected: false
+        };
+      });
+    });
+    
     setSelectedRows([]);
-    const remainingRows = dataRows.filter(row => !selectedRows.includes(row.id));
-    if (!columnWidthsRef.current["dataRows"]) {
-      columnWidthsRef.current["dataRows"] = {};
-    }
-    columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
-    toast.success(`已批量移动 ${selectedItems.length} 条数据`);
+    toast.success(`已批量删除 ${selectedRows.length} 条数据`);
   };
-
-  /** 拖拽时滚动处理 */
-  useEffect(() => {
-    if (!isDragging) return;
-
-    // 鼠标边缘自动滚动
-    const handleMouseMove = (e: MouseEvent) => {
-      const scrollSpeed = 8;
-      const edgeThreshold = 80;
-      const windowHeight = window.innerHeight;
-      const mouseY = e.clientY;
-
-      if (mouseY < edgeThreshold) {
-        window.scrollBy({ top: -scrollSpeed, behavior: 'smooth' });
-      } else if (mouseY > windowHeight - edgeThreshold) {
-        window.scrollBy({ top: scrollSpeed, behavior: 'smooth' });
-      }
-    };
-
-    // 滚轮滚动处理
-    const handleWheel = (e: WheelEvent) => {
-      const scrollAmount = e.deltaY > 0 ? 20 : -20;
-      window.scrollBy({ top: scrollAmount, behavior: 'smooth' });
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("wheel", handleWheel, { passive: false });
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("wheel", handleWheel);
-    };
-  }, [isDragging]);
 
   return (
     <>
@@ -620,16 +835,18 @@ export default function DataImport() {
             {/* 1. 导入数据 */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between">
+                <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
                   <CardTitle className="text-lg">导入数据</CardTitle>
                   {selectedRows.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">已选 {selectedRows.length} 条</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-[300px] max-w-md">
+                      <Badge variant="secondary" className="flex-shrink-0">
+                        已选 {selectedRows.length} 条
+                      </Badge>
                       <MultiSelect
                         options={categories.flatMap(cat => 
                           cat.hasGroups 
-                            ? cat.groups.map((g, idx) => ({ 
-                                label: `${cat.title} - 分组${idx + 1}`, 
+                            ? cat.groups.map((g) => ({ 
+                                label: `${cat.title} - ${g.name}`, 
                                 value: `${cat.id}:${g.id}` 
                               }))
                             : [{ label: cat.title, value: `${cat.id}:default` }]
@@ -642,7 +859,17 @@ export default function DataImport() {
                           }
                         }}
                         placeholder="批量移动到..."
+                        className="flex-grow min-w-[150px]"
                       />
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        className="gap-1 h-8 flex-shrink-0"
+                        onClick={handleBulkDeleteData}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        批量删除
+                      </Button>
                     </div>
                   )}
                 </CardHeader>
@@ -653,7 +880,8 @@ export default function DataImport() {
                         <tr>
                           <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg" style={{ width: 50 }}>
                             <Checkbox
-                              checked={selectedRows.length === dataRows.length}
+                              checked={allDataSelected}
+                              data-state={partiallyDataSelected ? "indeterminate" : allDataSelected ? "checked" : "unchecked"}
                               onCheckedChange={(checked) => {
                                 setSelectedRows(checked ? dataRows.map(r => r.id) : []);
                               }}
@@ -663,7 +891,7 @@ export default function DataImport() {
                           <th 
                             className="p-3 bg-primary/10 text-center font-medium text-sm"
                             style={{ 
-                              width: baseColumnWidthsRef.current[0] || 70,
+                              width: baseColumnWidthsRef.current[1] || 70,
                               whiteSpace: 'nowrap'
                             }}
                           >
@@ -674,7 +902,7 @@ export default function DataImport() {
                               key={index}
                               className="p-3 bg-primary/10 text-center font-medium text-sm"
                               style={{ 
-                                width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                width: baseColumnWidthsRef.current[index + 2] || 'auto',
                                 whiteSpace: 'nowrap'
                               }}
                             >
@@ -716,7 +944,7 @@ export default function DataImport() {
                             <td 
                               className="p-3 text-center text-sm"
                               style={{ 
-                                width: baseColumnWidthsRef.current[0] || 70,
+                                width: baseColumnWidthsRef.current[1] || 70,
                                 whiteSpace: 'nowrap'
                               }}
                             >
@@ -727,7 +955,7 @@ export default function DataImport() {
                                 key={index}
                                 className="p-3 text-center text-sm"
                                 style={{ 
-                                  width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                  width: baseColumnWidthsRef.current[index + 2] || 'auto',
                                   whiteSpace: 'nowrap'
                                 }}
                               >
@@ -741,24 +969,35 @@ export default function DataImport() {
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              <MultiSelect
-                                options={categories.flatMap(cat => 
-                                  cat.hasGroups 
-                                    ? cat.groups.map((g, idx) => ({ 
-                                        label: `${cat.title} - 分组${idx + 1}`, 
-                                        value: `${cat.id}:${g.id}` 
-                                      }))
-                                    : [{ label: cat.title, value: `${cat.id}:default` }]
-                                )}
-                                selected={[]}
-                                onChange={(values) => {
-                                  if (values.length > 0) {
-                                    const [categoryId, groupId] = values[0].split(':');
-                                    handleMoveToGroup(row.id, row.data, categoryId, groupId);
-                                  }
-                                }}
-                                placeholder="添加到..."
-                              />
+                              <div className="flex items-center justify-center gap-1">
+                                <MultiSelect
+                                  options={categories.flatMap(cat => 
+                                    cat.hasGroups 
+                                      ? cat.groups.map((g) => ({ 
+                                          label: `${cat.title} - ${g.name}`, 
+                                          value: `${cat.id}:${g.id}` 
+                                        }))
+                                      : [{ label: cat.title, value: `${cat.id}:default` }]
+                                  )}
+                                  selected={[]}
+                                  onChange={(values) => {
+                                    if (values.length > 0) {
+                                      const [categoryId, groupId] = values[0].split(':');
+                                      handleMoveToGroup(row.id, row.data, categoryId, groupId);
+                                    }
+                                  }}
+                                  placeholder="移动到..."
+                                  className="w-[100px]"
+                                />
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 -ml-2"
+                                  onClick={() => handleOpenDeleteDataDialog(row.id)}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -773,8 +1012,19 @@ export default function DataImport() {
             <div className="space-y-6">
               {categories.map(category => (
                 <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <CardTitle className="text-lg">{category.title}</CardTitle>
+                    {category.partiallySelected || category.allSelected ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="gap-1 h-8"
+                        onClick={() => handleBulkRemoveFromCategory(category.id)}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        移回 {category.allSelected ? '全部' : category.partiallySelected ? '选中' : ''}
+                      </Button>
+                    ) : null}
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="overflow-x-auto w-fit">
@@ -783,8 +1033,19 @@ export default function DataImport() {
                           <tr>
                             <th 
                               className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg"
+                              style={{ width: 50 }}
+                            >
+                              <Checkbox
+                                checked={category.allSelected}
+                                data-state={category.partiallySelected ? "indeterminate" : category.allSelected ? "checked" : "unchecked"}
+                                onCheckedChange={(checked) => handleCategorySelectAll(category.id, checked as boolean)}
+                                className="rounded-sm"
+                              />
+                            </th>
+                            <th 
+                              className="p-3 bg-primary/10 text-center font-medium text-sm"
                               style={{ 
-                                width: baseColumnWidthsRef.current[0] || 70,
+                                width: baseColumnWidthsRef.current[1] || 70,
                                 whiteSpace: 'nowrap'
                               }}
                             >
@@ -795,7 +1056,7 @@ export default function DataImport() {
                                 key={index}
                                 className="p-3 bg-primary/10 text-center font-medium text-sm"
                                 style={{ 
-                                  width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                  width: baseColumnWidthsRef.current[index + 2] || 'auto',
                                   whiteSpace: 'nowrap'
                                 }}
                               >
@@ -819,37 +1080,98 @@ export default function DataImport() {
                         {category.groups.map((group, groupIndex) => (
                           <div
                             key={group.id}
-                            onDrop={(e) => handleDrop(e, category.id, group.id)}
-                            onDragOver={handleDragOver}
-                            className="border-2 border-dashed border-border/50 rounded-lg p-4 pt-6 pb-2 min-h-32 relative"
+                            className={`border-2 border-dashed border-border/50 rounded-lg p-4 ${
+                              category.id === "recommended" ? "pt-4" : "pt-8 pb-2"
+                            } min-h-32 relative`}
                           >
-                            {/* 组编号与数量显示在左上角 */}
-                            <div className="absolute top-2 left-2 flex items-center gap-2">
-                              <span className="text-xs font-medium text-muted-foreground">
-                                组{groupIndex + 1}
-                              </span>
-                              {group.items.length > 0 && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {group.items.length} 条
-                                </Badge>
-                              )}
-                            </div>
-                            
-                            {/* 删除按钮显示在右上角，不占一行 */}
-                            {category.hasGroups && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
-                                onClick={() => handleOpenDeleteGroupDialog(category.id, group.id)}
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </Button>
+                            {/* 组名和基本信息 - 仅在非默认推荐分类显示 */}
+                            {category.id !== "recommended" && (
+                              <>
+                                <div className="absolute top-2 left-2 flex items-center gap-2 flex-wrap">
+                                  {editingGroupName?.categoryId === category.id && editingGroupName?.groupId === group.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <Input
+                                        ref={groupNameInputRef}
+                                        value={editingGroupName.name}
+                                        onChange={(e) => setEditingGroupName({...editingGroupName, name: e.target.value})}
+                                        onBlur={handleSaveGroupName}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSaveGroupName();
+                                          if (e.key === 'Escape') handleCancelEditGroupName();
+                                        }}
+                                        className="h-7 text-sm w-[100px]"
+                                        autoFocus
+                                      />
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-6 w-6 p-0"
+                                        onClick={handleSaveGroupName}
+                                      >
+                                        <Check className="h-3 w-3" />
+                                      </Button>
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="h-6 w-6 p-0"
+                                        onClick={handleCancelEditGroupName}
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <span 
+                                      className="text-xs font-medium text-foreground cursor-pointer hover:text-primary transition-colors"
+                                      onDoubleClick={() => handleStartEditGroupName(category.id, group.id, group.name)}
+                                    >
+                                      {group.name}
+                                    </span>
+                                  )}
+                                  
+                                  {group.items.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {group.items.length} 条
+                                    </Badge>
+                                  )}
+                                  
+                                  {group.selectedItems.length > 0 && (
+                                    <Badge variant="default" className="text-xs">
+                                      已选 {group.selectedItems.length} 条
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                {/* 组内全选按钮 */}
+                                {group.items.length > 0 && (
+                                  <div className="absolute top-2 right-24 flex items-center gap-1">
+                                    <Checkbox
+                                      checked={group.items.length > 0 && group.selectedItems.length === group.items.length}
+                                      data-state={group.selectedItems.length > 0 && group.selectedItems.length < group.items.length ? "indeterminate" : 
+                                                group.selectedItems.length === group.items.length ? "checked" : "unchecked"}
+                                      onCheckedChange={(checked) => handleGroupSelectAll(category.id, group.id, checked as boolean)}
+                                      className="rounded-sm h-3.5 w-3.5"
+                                    />
+                                    <span className="text-xs text-muted-foreground">全选本组</span>
+                                  </div>
+                                )}
+                                
+                                {/* 删除按钮 */}
+                                {category.hasGroups && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="absolute top-2 right-2 h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                                    onClick={() => handleOpenDeleteGroupDialog(category.id, group.id)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </>
                             )}
 
                             {group.items.length === 0 ? (
                               <p className="text-muted-foreground text-sm text-center py-6">
-                                拖拽数据到此处进行分组
+                                请使用"移动到..."功能添加数据
                               </p>
                             ) : (
                               <table className="border-collapse">
@@ -857,12 +1179,23 @@ export default function DataImport() {
                                   {group.items.map((item, itemIndex) => (
                                     <tr
                                       key={item.id}
-                                      className="transition-all duration-200 rounded-lg hover:bg-primary/5"
+                                      className={`transition-all duration-200 rounded-lg hover:bg-primary/5 ${
+                                        group.selectedItems.includes(item.id) ? 'bg-primary/10' : ''
+                                      }`}
                                     >
+                                      <td className="p-3 text-center" style={{ width: 50 }}>
+                                        <Checkbox
+                                          checked={group.selectedItems.includes(item.id)}
+                                          onCheckedChange={(checked) => {
+                                            handleCategoryItemSelect(category.id, group.id, item.id, checked as boolean);
+                                          }}
+                                          className="rounded-sm"
+                                        />
+                                      </td>
                                       <td 
                                         className="p-3 text-center text-sm"
                                         style={{ 
-                                          width: baseColumnWidthsRef.current[0] || 70,
+                                          width: baseColumnWidthsRef.current[1] || 70,
                                           whiteSpace: 'nowrap'
                                         }}
                                       >
@@ -873,7 +1206,7 @@ export default function DataImport() {
                                           key={index}
                                           className="p-3 text-center text-sm"
                                           style={{ 
-                                            width: baseColumnWidthsRef.current[index + 1] || 'auto',
+                                            width: baseColumnWidthsRef.current[index + 2] || 'auto',
                                             whiteSpace: 'nowrap'
                                           }}
                                         >
@@ -887,29 +1220,40 @@ export default function DataImport() {
                                           whiteSpace: 'nowrap'
                                         }}
                                       >
-                                        <MultiSelect
-                                          options={categories.flatMap(cat => 
-                                            cat.hasGroups 
-                                              ? cat.groups
-                                                  .filter(g => !(cat.id === category.id && g.id === group.id))
-                                                  .map((g, idx) => ({ 
-                                                    label: `${cat.title} - 分组${cat.groups.indexOf(g) + 1}`, 
-                                                    value: `${cat.id}:${g.id}` 
-                                                  }))
-                                              : cat.id !== category.id 
-                                                ? [{ label: cat.title, value: `${cat.id}:default` }]
-                                                : []
-                                          )}
-                                          selected={[]}
-                                          onChange={(values) => {
-                                            if (values.length > 0) {
-                                              const [targetCategoryId, targetGroupId] = values[0].split(':');
-                                              handleMoveToGroup(item.id, item.data, targetCategoryId, targetGroupId);
-                                              handleRemoveFromCategory(category.id, group.id, item.id);
-                                            }
-                                          }}
-                                          placeholder="移动到..."
-                                        />
+                                        <div className="flex items-center justify-center gap-1">
+                                          <MultiSelect
+                                            options={categories.flatMap(cat => 
+                                              cat.hasGroups 
+                                                ? cat.groups
+                                                    .filter(g => !(cat.id === category.id && g.id === group.id))
+                                                    .map((g) => ({ 
+                                                      label: `${cat.title} - ${g.name}`, 
+                                                      value: `${cat.id}:${g.id}` 
+                                                    }))
+                                                : cat.id !== category.id 
+                                                  ? [{ label: cat.title, value: `${cat.id}:default` }]
+                                                  : []
+                                            )}
+                                            selected={[]}
+                                            onChange={(values) => {
+                                              if (values.length > 0) {
+                                                const [targetCategoryId, targetGroupId] = values[0].split(':');
+                                                // 传递源分组信息，确保从原分组删除
+                                                handleMoveToGroup(item.id, item.data, targetCategoryId, targetGroupId, category.id, group.id);
+                                              }
+                                            }}
+                                            placeholder="移动到..."
+                                            className="w-[100px]"
+                                          />
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 -ml-2"
+                                            onClick={() => handleRemoveFromCategory(category.id, group.id, item.id)}
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </div>
                                       </td>
                                     </tr>
                                   ))}
@@ -919,6 +1263,7 @@ export default function DataImport() {
                           </div>
                         ))}
 
+                        {/* 添加新组按钮 - 仅在有分组的分类显示 */}
                         {category.hasGroups && (
                           <div
                             onClick={() => handleAddGroup(category.id)}
@@ -1005,6 +1350,27 @@ export default function DataImport() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteGroupDialogOpen(false)}>取消</Button>
             <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={handleConfirmDeleteGroup}>
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 删除数据对话框 */}
+      <Dialog open={deleteDataDialogOpen} onOpenChange={setDeleteDataDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除数据</DialogTitle>
+            <DialogDescription>
+              确定要从项目中删除这条数据吗？此操作将从所有分组中移除该数据。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">此操作不可撤销，请确认后执行。</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDataDialogOpen(false)}>取消</Button>
+            <Button className="bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={handleConfirmDeleteData}>
               确认删除
             </Button>
           </DialogFooter>
