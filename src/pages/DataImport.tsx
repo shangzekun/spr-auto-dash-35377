@@ -724,7 +724,7 @@ export default function DataImport() {
         const updatedGroups = category.groups.map(group => ({
           ...group,
           items: group.items.filter(item => !selectedRows.includes(item.id)), // 从所有分组中删除
-          selectedItems: group.selectedItems.filter(id => !selectedRows.includes(item.id))
+          selectedItems: group.selectedItems?.filter(id => !selectedRows.includes(id)) || []
         }));
         
         return {
