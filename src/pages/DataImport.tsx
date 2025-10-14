@@ -62,7 +62,6 @@ export default function DataImport() {
   const [isDragging, setIsDragging] = useState(false);
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [selectedGroupItems, setSelectedGroupItems] = useState<Record<string, Record<string, string[]>>>({});
   const mainContentRef = useRef<HTMLDivElement>(null);
   const columnWidthsRef = useRef<Record<string, Record<string, number[]>>>({});
   const baseColumnWidthsRef = useRef<number[]>([]); // 存储导入数据栏的列宽作为基准
@@ -493,47 +492,6 @@ export default function DataImport() {
     toast.success(`已批量移动 ${selectedItems.length} 条数据`);
   };
 
-  /** 批量删除分组中选中的项 */
-  const handleBatchDeleteFromGroup = (categoryId: string, groupId: string) => {
-    const selectedItems = selectedGroupItems[categoryId]?.[groupId] || [];
-    if (selectedItems.length === 0) return;
-
-    const category = categories.find(cat => cat.id === categoryId);
-    const group = category?.groups.find(g => g.id === groupId);
-    const itemsToDelete = group?.items.filter(item => selectedItems.includes(item.id)) || [];
-
-    // 更新分类
-    const updatedGroups = categories.map(cat =>
-      cat.id === categoryId
-        ? {
-            ...cat,
-            groups: cat.groups.map(g =>
-              g.id === groupId 
-                ? { ...g, items: g.items.filter(i => !selectedItems.includes(i.id)) } 
-                : g
-            )
-          }
-        : cat
-    );
-
-    setCategories(updatedGroups);
-    
-    // 清空选择
-    setSelectedGroupItems(prev => ({
-      ...prev,
-      [categoryId]: {
-        ...prev[categoryId],
-        [groupId]: []
-      }
-    }));
-
-    // 更新列宽
-    const updatedGroupItems = group?.items.filter(i => !selectedItems.includes(i.id)) || [];
-    updateCategoryColumnWidths(categoryId, groupId, updatedGroupItems);
-
-    toast.success(`已删除 ${selectedItems.length} 条数据`);
-  };
-
   /** 拖拽时滚动处理 */
   useEffect(() => {
     if (!isDragging) return;
@@ -816,19 +774,14 @@ export default function DataImport() {
               {categories.map(category => (
                 <Card key={category.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
                   <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{category.title}</CardTitle>
-                    </div>
+                    <CardTitle className="text-lg">{category.title}</CardTitle>
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="overflow-x-auto w-fit">
                       <table className="border-collapse mb-4">
                         <thead>
                           <tr>
-                            <th className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg" style={{ width: 50 }}>
-                              选择
-                            </th>
-                            <th
+                            <th 
                               className="p-3 bg-primary/10 text-center font-medium text-sm rounded-l-lg"
                               style={{ 
                                 width: baseColumnWidthsRef.current[0] || 70,
@@ -880,21 +833,6 @@ export default function DataImport() {
                                   {group.items.length} 条
                                 </Badge>
                               )}
-                              {(selectedGroupItems[category.id]?.[group.id]?.length || 0) > 0 && (
-                                <>
-                                  <Badge variant="default" className="text-xs">
-                                    已选 {selectedGroupItems[category.id][group.id].length}
-                                  </Badge>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    className="h-6 px-2 text-xs"
-                                    onClick={() => handleBatchDeleteFromGroup(category.id, group.id)}
-                                  >
-                                    删除选中
-                                  </Button>
-                                </>
-                              )}
                             </div>
                             
                             {/* 删除按钮显示在右上角，不占一行 */}
@@ -916,37 +854,12 @@ export default function DataImport() {
                             ) : (
                               <table className="border-collapse">
                                 <tbody>
-                                  {group.items.map((item, itemIndex) => {
-                                    const isSelected = selectedGroupItems[category.id]?.[group.id]?.includes(item.id) || false;
-                                    return (
+                                  {group.items.map((item, itemIndex) => (
                                     <tr
                                       key={item.id}
-                                      className={`transition-all duration-200 rounded-lg hover:bg-primary/5 ${
-                                        isSelected ? 'bg-primary/10' : ''
-                                      }`}
+                                      className="transition-all duration-200 rounded-lg hover:bg-primary/5"
                                     >
-                                      <td className="p-3 text-center" style={{ width: 50 }}>
-                                        <Checkbox
-                                          checked={isSelected}
-                                          onCheckedChange={(checked) => {
-                                            setSelectedGroupItems(prev => {
-                                              const categoryItems = prev[category.id] || {};
-                                              const groupItems = categoryItems[group.id] || [];
-                                              return {
-                                                ...prev,
-                                                [category.id]: {
-                                                  ...categoryItems,
-                                                  [group.id]: checked 
-                                                    ? [...groupItems, item.id]
-                                                    : groupItems.filter(id => id !== item.id)
-                                                }
-                                              };
-                                            });
-                                          }}
-                                          className="rounded-sm"
-                                        />
-                                      </td>
-                                      <td
+                                      <td 
                                         className="p-3 text-center text-sm"
                                         style={{ 
                                           width: baseColumnWidthsRef.current[0] || 70,
@@ -999,8 +912,7 @@ export default function DataImport() {
                                         />
                                       </td>
                                     </tr>
-                                  );
-                                  })}
+                                  ))}
                                 </tbody>
                               </table>
                             )}
