@@ -8,6 +8,8 @@ import Dashboard from "./pages/Dashboard";
 import DataImport from "./pages/DataImport";
 import Modules from "./pages/Modules";
 import Scenarios from "./pages/Scenarios";
+import OperationLogs from "./pages/OperationLogs";
+import ModelManagement from "./pages/ModelManagement";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
@@ -25,6 +27,8 @@ const App = () => (
             <Route path="/data-import" element={<DataImport />} />
             <Route path="/modules" element={<Modules />} />
             <Route path="/scenarios" element={<Scenarios />} />
+            <Route path="/operation-logs" element={<OperationLogs />} />
+            <Route path="/model-management" element={<ModelManagement />} />
             <Route path="/settings" element={<Settings />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

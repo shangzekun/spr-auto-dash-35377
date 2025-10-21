@@ -36,6 +36,16 @@ const menuItems = [
     icon: BarChart3
   },
   { 
+    title: "操作日志", 
+    url: "/operation-logs", 
+    icon: BarChart3
+  },
+  { 
+    title: "模型管理", 
+    url: "/model-management", 
+    icon: Settings
+  },
+  { 
     title: "设置", 
     url: "/settings", 
     icon: Settings
