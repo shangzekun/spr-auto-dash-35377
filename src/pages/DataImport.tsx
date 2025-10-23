@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, Check, X } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Upload, FileText, Plus, Trash2, Edit3, Save, FolderOpen, Check, X, User, Users, BarChart3 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,13 +8,68 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 
 const mockProjects = [
-  { id: "1", name: "Qinling", status: "active", dataCount: 1247 },
-  { id: "2", name: "Pisces", status: "active", dataCount: 856 },
-  { id: "3", name: "Dom G1.6", status: "inactive", dataCount: 234 }
+  { 
+    id: "1", 
+    name: "Qinling", 
+    status: "active", 
+    dataCount: 1247,
+    description: "秦岭项目是公司核心研发项目，专注于高强度钢材铆接工艺研究",
+    creator: "张伟",
+    createdAt: "2024-01-15",
+    participants: ["张伟", "李明", "王芳", "刘强"]
+  },
+  { 
+    id: "2", 
+    name: "Pisces", 
+    status: "active", 
+    dataCount: 856,
+    description: "双鱼座项目专注于轻量化材料应用研究",
+    creator: "李明",
+    createdAt: "2024-03-20",
+    participants: ["李明", "赵敏", "孙健"]
+  },
+  { 
+    id: "3", 
+    name: "Dom G1.6", 
+    status: "inactive", 
+    dataCount: 234,
+    description: "G1.6代工艺优化项目",
+    creator: "王芳",
+    createdAt: "2023-11-08",
+    participants: ["王芳", "周杰"]
+  }
 ];
+
+// 每个项目的历史分析记录
+const mockAnalysisHistory: Record<string, Array<{
+  id: string;
+  module: string;
+  analyst: string;
+  result: string;
+  modelVersion: string;
+  analysisDate: string;
+  status: "success" | "warning" | "failed";
+}>> = {
+  "1": [
+    { id: "a1", module: "强度分析", analyst: "张伟", result: "合格 - 强度满足设计要求", modelVersion: "v2.3.1", analysisDate: "2024-10-15 14:30", status: "success" },
+    { id: "a2", module: "疲劳寿命", analyst: "李明", result: "良好 - 预计寿命>10万次", modelVersion: "v2.3.1", analysisDate: "2024-10-14 09:15", status: "success" },
+    { id: "a3", module: "应力分布", analyst: "王芳", result: "警告 - 局部应力集中", modelVersion: "v2.2.8", analysisDate: "2024-10-13 16:45", status: "warning" },
+    { id: "a4", module: "材料匹配", analyst: "刘强", result: "优秀 - 材料组合最优", modelVersion: "v2.3.0", analysisDate: "2024-10-12 11:20", status: "success" },
+  ],
+  "2": [
+    { id: "b1", module: "重量优化", analyst: "李明", result: "达标 - 减重15%", modelVersion: "v2.3.1", analysisDate: "2024-10-20 10:00", status: "success" },
+    { id: "b2", module: "成本分析", analyst: "赵敏", result: "合理 - 成本降低8%", modelVersion: "v2.3.0", analysisDate: "2024-10-18 15:30", status: "success" },
+    { id: "b3", module: "工艺可行性", analyst: "孙健", result: "可行 - 现有设备可生产", modelVersion: "v2.2.9", analysisDate: "2024-10-17 14:10", status: "success" },
+  ],
+  "3": [
+    { id: "c1", module: "工艺参数", analyst: "王芳", result: "需优化 - 温度控制不稳定", modelVersion: "v2.1.5", analysisDate: "2024-09-25 13:40", status: "warning" },
+    { id: "c2", module: "质量检测", analyst: "周杰", result: "失败 - 检出率低于标准", modelVersion: "v2.1.5", analysisDate: "2024-09-20 09:50", status: "failed" },
+  ]
+};
 
 const dataHeaders = ["Material 1", "Material 2", "Material 3", "Gauge 1", "Gauge 2", "Gauge 3", "Rivet", "Die"];
 
@@ -61,8 +116,19 @@ const initialCategories: Category[] = [
 export default function DataImport() {
   const [selectedProject, setSelectedProject] = useState("1");
   const [projects, setProjects] = useState(mockProjects);
-  const [dataRows, setDataRows] = useState(mockDataRows);
-  const [categories, setCategories] = useState<Category[]>(initialCategories);
+  const [activeTab, setActiveTab] = useState("data-management");
+  
+  // 每个项目有独立的数据状态
+  const [projectDataState, setProjectDataState] = useState<Record<string, {
+    dataRows: Array<{ id: string; data: string[] }>;
+    categories: Category[];
+    selectedRows: string[];
+  }>>({
+    "1": { dataRows: mockDataRows.slice(0, 5), categories: initialCategories, selectedRows: [] },
+    "2": { dataRows: mockDataRows.slice(5, 10), categories: initialCategories, selectedRows: [] },
+    "3": { dataRows: mockDataRows.slice(10, 15), categories: initialCategories, selectedRows: [] },
+  });
+  
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [isEditProjectDialogOpen, setIsEditProjectDialogOpen] = useState(false);
   const [isDeleteGroupDialogOpen, setIsDeleteGroupDialogOpen] = useState(false);
@@ -70,7 +136,6 @@ export default function DataImport() {
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingProjectName, setEditingProjectName] = useState("");
   const [deleteGroupInfo, setDeleteGroupInfo] = useState<{ categoryId: string; groupId: string } | null>(null);
-  const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [allDataSelected, setAllDataSelected] = useState(false);
   const [partiallyDataSelected, setPartiallyDataSelected] = useState(false);
   const [deleteDataDialogOpen, setDeleteDataDialogOpen] = useState(false);
@@ -82,48 +147,62 @@ export default function DataImport() {
   const mainContentRef = useRef<HTMLDivElement>(null);
   const columnWidthsRef = useRef<Record<string, Record<string, number[]>>>({});
   const baseColumnWidthsRef = useRef<number[]>([]);
+  
+  // 获取当前项目的数据
+  const currentProjectData = projectDataState[selectedProject] || { dataRows: [], categories: initialCategories, selectedRows: [] };
+  const dataRows = currentProjectData.dataRows;
+  const categories = currentProjectData.categories;
+  const selectedRows = currentProjectData.selectedRows;
+  
+  // 更新当前项目的数据
+  const updateProjectData = (updates: Partial<typeof currentProjectData>) => {
+    setProjectDataState(prev => ({
+      ...prev,
+      [selectedProject]: { ...prev[selectedProject], ...updates }
+    }));
+  };
+  
+  // 当切换项目时，切换到数据管理标签
+  useEffect(() => {
+    setActiveTab("data-management");
+  }, [selectedProject]);
 
   // 更新分类的选中状态
   const updateCategorySelectionState = (categoryId: string) => {
-    setCategories(prev => {
-      const updatedCategories = [...prev];
-      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-      
-      if (catIndex === -1) return updatedCategories;
-      
-      const category = { ...updatedCategories[catIndex] };
-      const allItemsCount = category.groups.reduce((sum, group) => sum + group.items.length, 0);
-      const allSelectedCount = category.groups.reduce((sum, group) => sum + group.selectedItems.length, 0);
-      
-      category.allSelected = allItemsCount > 0 && allItemsCount === allSelectedCount;
-      category.partiallySelected = allSelectedCount > 0 && allSelectedCount < allItemsCount;
-      
-      updatedCategories[catIndex] = category;
-      return updatedCategories;
+    updateProjectData({
+      categories: categories.map((cat, catIndex) => {
+        if (cat.id !== categoryId) return cat;
+        
+        const allItemsCount = cat.groups.reduce((sum, group) => sum + group.items.length, 0);
+        const allSelectedCount = cat.groups.reduce((sum, group) => sum + group.selectedItems.length, 0);
+        
+        return {
+          ...cat,
+          allSelected: allItemsCount > 0 && allItemsCount === allSelectedCount,
+          partiallySelected: allSelectedCount > 0 && allSelectedCount < allItemsCount
+        };
+      })
     });
   };
 
   // 处理分类中项目的选择
   const handleCategoryItemSelect = (categoryId: string, groupId: string, itemId: string, checked: boolean) => {
-    setCategories(prev => {
-      const updatedCategories = [...prev];
-      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-      
-      if (catIndex === -1) return updatedCategories;
-      
-      const category = { ...updatedCategories[catIndex] };
-      category.groups = category.groups.map(group => {
-        if (group.id === groupId) {
-          const updatedSelected = checked 
-            ? [...group.selectedItems, itemId]
-            : group.selectedItems.filter(id => id !== itemId);
-          return { ...group, selectedItems: updatedSelected };
-        }
-        return group;
-      });
-      
-      updatedCategories[catIndex] = category;
-      return updatedCategories;
+    updateProjectData({
+      categories: categories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        
+        return {
+          ...cat,
+          groups: cat.groups.map(group => {
+            if (group.id !== groupId) return group;
+            
+            const updatedSelected = checked 
+              ? [...group.selectedItems, itemId]
+              : group.selectedItems.filter(id => id !== itemId);
+            return { ...group, selectedItems: updatedSelected };
+          })
+        };
+      })
     });
     
     setTimeout(() => updateCategorySelectionState(categoryId), 0);
@@ -131,45 +210,41 @@ export default function DataImport() {
 
   // 处理分类的全选
   const handleCategorySelectAll = (categoryId: string, checked: boolean) => {
-    setCategories(prev => {
-      const updatedCategories = [...prev];
-      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-      
-      if (catIndex === -1) return updatedCategories;
-      
-      const category = { ...updatedCategories[catIndex] };
-      category.groups = category.groups.map(group => {
-        const selected = checked ? group.items.map(item => item.id) : [];
-        return { ...group, selectedItems: selected };
-      });
-      
-      category.allSelected = checked;
-      category.partiallySelected = false;
-      
-      updatedCategories[catIndex] = category;
-      return updatedCategories;
+    updateProjectData({
+      categories: categories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        
+        return {
+          ...cat,
+          groups: cat.groups.map(group => ({
+            ...group,
+            selectedItems: checked ? group.items.map(item => item.id) : []
+          })),
+          allSelected: checked,
+          partiallySelected: false
+        };
+      })
     });
   };
 
   // 处理分组的全选
   const handleGroupSelectAll = (categoryId: string, groupId: string, checked: boolean) => {
-    setCategories(prev => {
-      const updatedCategories = [...prev];
-      const catIndex = updatedCategories.findIndex(cat => cat.id === categoryId);
-      
-      if (catIndex === -1) return updatedCategories;
-      
-      const category = { ...updatedCategories[catIndex] };
-      category.groups = category.groups.map(group => {
-        if (group.id === groupId) {
-          const selected = checked ? group.items.map(item => item.id) : [];
-          return { ...group, selectedItems: selected };
-        }
-        return group;
-      });
-      
-      updatedCategories[catIndex] = category;
-      return updatedCategories;
+    updateProjectData({
+      categories: categories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        
+        return {
+          ...cat,
+          groups: cat.groups.map(group => {
+            if (group.id !== groupId) return group;
+            
+            return {
+              ...group,
+              selectedItems: checked ? group.items.map(item => item.id) : []
+            };
+          })
+        };
+      })
     });
     
     setTimeout(() => updateCategorySelectionState(categoryId), 0);
@@ -179,27 +254,25 @@ export default function DataImport() {
   useEffect(() => {
     setAllDataSelected(dataRows.length > 0 && selectedRows.length === dataRows.length);
     setPartiallyDataSelected(selectedRows.length > 0 && selectedRows.length < dataRows.length);
-  }, [selectedRows, dataRows]);
+  }, [selectedRows, dataRows, selectedProject]);
 
   // 同步所有分组列宽到基准列宽
   const syncAllGroupWidthsToBase = () => {
     if (baseColumnWidthsRef.current.length === 0) return;
     
-    const updatedCategories = [...categories];
-    updatedCategories.forEach((category, catIndex) => {
-      category.groups.forEach((group, groupIndex) => {
+    const updatedCategories = categories.map(category => ({
+      ...category,
+      groups: category.groups.map(group => {
         if (!columnWidthsRef.current[category.id]) {
           columnWidthsRef.current[category.id] = {};
         }
         columnWidthsRef.current[category.id][group.id] = [...baseColumnWidthsRef.current];
         
-        updatedCategories[catIndex].groups[groupIndex] = {
-          ...group,
-          items: [...group.items]
-        };
-      });
-    });
-    setCategories(updatedCategories);
+        return { ...group, items: [...group.items] };
+      })
+    }));
+    
+    updateProjectData({ categories: updatedCategories });
   };
 
   // 初始化列宽
@@ -308,20 +381,20 @@ export default function DataImport() {
     const category = categories.find(cat => cat.id === categoryId);
     const group = category?.groups.find(g => g.id === groupId);
     if (group?.items.length) {
-      setDataRows(prev => [...prev, ...group.items]);
+      updateProjectData({ dataRows: [...dataRows, ...group.items] });
       if (!columnWidthsRef.current["dataRows"]) {
         columnWidthsRef.current["dataRows"] = {};
       }
       columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, ...group.items]);
     }
 
-    setCategories(prev =>
-      prev.map(cat =>
+    updateProjectData({
+      categories: categories.map(cat =>
         cat.id === categoryId
           ? { ...cat, groups: cat.groups.filter(g => g.id !== groupId) }
           : cat
       )
-    );
+    });
     
     if (columnWidthsRef.current[categoryId]) {
       delete columnWidthsRef.current[categoryId][groupId];
@@ -359,8 +432,10 @@ export default function DataImport() {
         : cat
     );
 
-    setCategories(updatedGroups);
-    setDataRows(prev => [...prev, item]);
+    updateProjectData({ 
+      categories: updatedGroups,
+      dataRows: [...dataRows, item]
+    });
 
     const updatedGroupItems = group.items.filter(i => i.id !== itemId);
     updateCategoryColumnWidths(categoryId, groupId, updatedGroupItems);
@@ -403,7 +478,11 @@ export default function DataImport() {
       };
     });
     
-    setDataRows(prev => [...prev, ...selectedItems]);
+    updateProjectData({
+      dataRows: [...dataRows, ...selectedItems],
+      categories: updatedCategories
+    });
+    
     if (selectedItems.length > 0) {
       if (!columnWidthsRef.current["dataRows"]) {
         columnWidthsRef.current["dataRows"] = {};
@@ -411,7 +490,6 @@ export default function DataImport() {
       columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths([...dataRows, ...selectedItems]);
     }
     
-    setCategories(updatedCategories);
     toast.success(`已将 ${selectedItems.length} 条数据移回导入区`);
   };
 
@@ -420,8 +498,8 @@ export default function DataImport() {
     const category = categories.find(cat => cat.id === categoryId);
     const groupCount = category?.groups.length || 0;
     const newGroupId = `group-${Date.now()}`;
-    setCategories(prev =>
-      prev.map(cat =>
+    updateProjectData({
+      categories: categories.map(cat =>
         cat.id === categoryId
           ? { 
               ...cat, 
@@ -429,7 +507,7 @@ export default function DataImport() {
             }
           : cat
       )
-    );
+    });
     
     if (!columnWidthsRef.current[categoryId]) {
       columnWidthsRef.current[categoryId] = {};
@@ -454,8 +532,8 @@ export default function DataImport() {
     const { categoryId, groupId, name } = editingGroupName;
     const trimmedName = name.trim() || `分组${Date.now().toString().slice(-4)}`;
     
-    setCategories(prev => 
-      prev.map(category => 
+    updateProjectData({
+      categories: categories.map(category => 
         category.id === categoryId
           ? {
               ...category,
@@ -467,7 +545,7 @@ export default function DataImport() {
             }
           : category
       )
-    );
+    });
     
     setEditingGroupName(null);
   };
@@ -484,9 +562,17 @@ export default function DataImport() {
         id: String(Date.now()),
         name: newProjectName.trim(),
         status: "active" as const,
-        dataCount: 0
+        dataCount: 0,
+        description: "新建项目",
+        creator: "当前用户",
+        createdAt: new Date().toISOString().split('T')[0],
+        participants: ["当前用户"]
       };
       setProjects(prev => [...prev, newProject]);
+      setProjectDataState(prev => ({
+        ...prev,
+        [newProject.id]: { dataRows: [], categories: initialCategories, selectedRows: [] }
+      }));
       setNewProjectName("");
       setIsNewProjectDialogOpen(false);
       toast.success("项目创建成功");
@@ -528,72 +614,75 @@ export default function DataImport() {
   /** 单行移动到指定分组 - 核心修改：确保从源分组彻底删除 */
   const handleMoveToGroup = (rowId: string, rowData: string[], categoryId: string, groupId: string, sourceCategoryId?: string, sourceGroupId?: string) => {
     // 1. 从源位置删除数据（优先级：先处理分组内移动，再处理导入区移动）
+    let newCategories = categories;
+    let newDataRows = dataRows;
+    let newSelectedRows = selectedRows;
+    
     if (sourceCategoryId && sourceGroupId) {
       // 从源分组删除数据
-      setCategories(prev => 
-        prev.map(cat => {
-          if (cat.id !== sourceCategoryId) return cat;
-          
-          // 遍历源分类下的所有组，找到源组并过滤数据
-          const updatedGroups = cat.groups.map(g => {
-            if (g.id !== sourceGroupId) return g;
-            
-            // 核心：过滤掉要移动的rowId，确保源组不再包含该数据
-            const updatedItems = g.items.filter(item => item.id !== rowId);
-            // 同步删除源组的选中状态（避免残留选中）
-            const updatedSelected = g.selectedItems.filter(id => id !== rowId);
-            
-            // 更新源组列宽（基于删除后的数据）
-            updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
-            
-            return { ...g, items: updatedItems, selectedItems: updatedSelected };
-          });
-          
-          return { ...cat, groups: updatedGroups };
-        })
-      );
-      
-      // 同步更新源分类的选中状态（避免全选/半选状态异常）
-      updateCategorySelectionState(sourceCategoryId);
-    } else {
-      // 从导入区删除数据
-      setDataRows(prev => prev.filter(row => row.id !== rowId));
-      setSelectedRows(prev => prev.filter(id => id !== rowId));
-      
-      // 更新导入区列宽（基于删除后的数据）
-      const remainingRows = dataRows.filter(row => row.id !== rowId);
-      if (!columnWidthsRef.current["dataRows"]) {
-        columnWidthsRef.current["dataRows"] = {};
-      }
-      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
-    }
-
-    // 2. 添加数据到目标分组
-    setCategories(prev => 
-      prev.map(cat => {
-        if (cat.id !== categoryId) return cat;
+      newCategories = categories.map(cat => {
+        if (cat.id !== sourceCategoryId) return cat;
         
-        // 遍历目标分类下的所有组，找到目标组并添加数据
+        // 遍历源分类下的所有组，找到源组并过滤数据
         const updatedGroups = cat.groups.map(g => {
-          if (g.id !== groupId) return g;
+          if (g.id !== sourceGroupId) return g;
           
-          // 核心：添加数据到目标组（确保不重复添加）
-          const isAlreadyExists = g.items.some(item => item.id === rowId);
-          const updatedItems = isAlreadyExists 
-            ? g.items 
-            : [...g.items, { id: rowId, data: rowData }];
+          // 核心：过滤掉要移动的rowId，确保源组不再包含该数据
+          const updatedItems = g.items.filter(item => item.id !== rowId);
+          // 同步删除源组的选中状态（避免残留选中）
+          const updatedSelected = g.selectedItems.filter(id => id !== rowId);
           
-          // 更新目标组列宽（基于添加后的数据）
-          updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+          // 更新源组列宽（基于删除后的数据）
+          updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
           
-          return { ...g, items: updatedItems };
+          return { ...g, items: updatedItems, selectedItems: updatedSelected };
         });
         
         return { ...cat, groups: updatedGroups };
-      })
-    );
+      });
+    } else {
+      // 从导入区删除数据
+      newDataRows = dataRows.filter(row => row.id !== rowId);
+      newSelectedRows = selectedRows.filter(id => id !== rowId);
+      
+      // 更新导入区列宽（基于删除后的数据）
+      if (!columnWidthsRef.current["dataRows"]) {
+        columnWidthsRef.current["dataRows"] = {};
+      }
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(newDataRows);
+    }
+
+    // 2. 添加数据到目标分组
+    newCategories = newCategories.map(cat => {
+      if (cat.id !== categoryId) return cat;
+      
+      // 遍历目标分类下的所有组，找到目标组并添加数据
+      const updatedGroups = cat.groups.map(g => {
+        if (g.id !== groupId) return g;
+        
+        // 核心：添加数据到目标组（确保不重复添加）
+        const isAlreadyExists = g.items.some(item => item.id === rowId);
+        const updatedItems = isAlreadyExists 
+          ? g.items 
+          : [...g.items, { id: rowId, data: rowData }];
+        
+        // 更新目标组列宽（基于添加后的数据）
+        updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+        
+        return { ...g, items: updatedItems };
+      });
+      
+      return { ...cat, groups: updatedGroups };
+    });
     
-    // 同步更新目标分类的选中状态
+    updateProjectData({
+      categories: newCategories,
+      dataRows: newDataRows,
+      selectedRows: newSelectedRows
+    });
+    
+    // 同步更新分类的选中状态
+    if (sourceCategoryId) updateCategorySelectionState(sourceCategoryId);
     updateCategorySelectionState(categoryId);
     toast.success("数据已移动到目标分组");
   };
@@ -602,77 +691,79 @@ export default function DataImport() {
   const handleBatchMove = (categoryId: string, groupId: string, sourceCategoryId?: string, sourceGroupId?: string) => {
     // 1. 从源位置删除选中数据
     let selectedItems: Array<{ id: string; data: string[] }> = [];
+    let newCategories = categories;
+    let newDataRows = dataRows;
+    let newSelectedRows = selectedRows;
     
     if (sourceCategoryId && sourceGroupId) {
       // 从源分组获取并删除选中数据
-      setCategories(prev => 
-        prev.map(cat => {
-          if (cat.id !== sourceCategoryId) return cat;
+      newCategories = categories.map(cat => {
+        if (cat.id !== sourceCategoryId) return cat;
+        
+        const updatedGroups = cat.groups.map(g => {
+          if (g.id !== sourceGroupId) return g;
           
-          const updatedGroups = cat.groups.map(g => {
-            if (g.id !== sourceGroupId) return g;
-            
-            // 核心：获取源组中所有选中的items
-            selectedItems = g.items.filter(item => g.selectedItems.includes(item.id));
-            // 核心：过滤掉选中的items，确保源组不再包含
-            const updatedItems = g.items.filter(item => !g.selectedItems.includes(item.id));
-            
-            // 更新源组列宽（基于删除后的数据）
-            updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
-            
-            return { 
-              ...g, 
-              items: updatedItems, 
-              selectedItems: [] // 清空源组选中状态
-            };
-          });
+          // 核心：获取源组中所有选中的items
+          selectedItems = g.items.filter(item => g.selectedItems.includes(item.id));
+          // 核心：过滤掉选中的items，确保源组不再包含
+          const updatedItems = g.items.filter(item => !g.selectedItems.includes(item.id));
           
-          return { ...cat, groups: updatedGroups };
-        })
-      );
-      
-      // 同步更新源分类的选中状态
-      updateCategorySelectionState(sourceCategoryId);
+          // 更新源组列宽（基于删除后的数据）
+          updateCategoryColumnWidths(sourceCategoryId, sourceGroupId, updatedItems);
+          
+          return { 
+            ...g, 
+            items: updatedItems, 
+            selectedItems: [] // 清空源组选中状态
+          };
+        });
+        
+        return { ...cat, groups: updatedGroups };
+      });
     } else {
       // 从导入区获取并删除选中数据
       selectedItems = dataRows.filter(row => selectedRows.includes(row.id));
-      setDataRows(prev => prev.filter(row => !selectedRows.includes(row.id)));
-      setSelectedRows([]); // 清空导入区选中状态
+      newDataRows = dataRows.filter(row => !selectedRows.includes(row.id));
+      newSelectedRows = []; // 清空导入区选中状态
       
       // 更新导入区列宽
-      const remainingRows = dataRows.filter(row => !selectedRows.includes(row.id));
       if (!columnWidthsRef.current["dataRows"]) {
         columnWidthsRef.current["dataRows"] = {};
       }
-      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(remainingRows);
+      columnWidthsRef.current["dataRows"]["default"] = calculateColumnWidths(newDataRows);
     }
 
     // 2. 批量添加数据到目标分组
     if (selectedItems.length > 0) {
-      setCategories(prev => 
-        prev.map(cat => {
-          if (cat.id !== categoryId) return cat;
+      newCategories = newCategories.map(cat => {
+        if (cat.id !== categoryId) return cat;
+        
+        const updatedGroups = cat.groups.map(g => {
+          if (g.id !== groupId) return g;
           
-          const updatedGroups = cat.groups.map(g => {
-            if (g.id !== groupId) return g;
-            
-            // 核心：过滤掉已存在的数据（避免重复添加）
-            const newItems = selectedItems.filter(newItem => 
-              !g.items.some(existing => existing.id === newItem.id)
-            );
-            const updatedItems = [...g.items, ...newItems];
-            
-            // 更新目标组列宽
-            updateCategoryColumnWidths(categoryId, groupId, updatedItems);
-            
-            return { ...g, items: updatedItems };
-          });
+          // 核心：过滤掉已存在的数据（避免重复添加）
+          const newItems = selectedItems.filter(newItem => 
+            !g.items.some(existing => existing.id === newItem.id)
+          );
+          const updatedItems = [...g.items, ...newItems];
           
-          return { ...cat, groups: updatedGroups };
-        })
-      );
+          // 更新目标组列宽
+          updateCategoryColumnWidths(categoryId, groupId, updatedItems);
+          
+          return { ...g, items: updatedItems };
+        });
+        
+        return { ...cat, groups: updatedGroups };
+      });
       
-      // 同步更新目标分类的选中状态
+      updateProjectData({
+        categories: newCategories,
+        dataRows: newDataRows,
+        selectedRows: newSelectedRows
+      });
+      
+      // 同步更新分类的选中状态
+      if (sourceCategoryId) updateCategorySelectionState(sourceCategoryId);
       updateCategorySelectionState(categoryId);
       toast.success(`已批量移动 ${selectedItems.length} 条数据到目标分组`);
     } else {
@@ -690,22 +781,17 @@ export default function DataImport() {
   const handleConfirmDeleteData = () => {
     if (!dataToDelete) return;
     
-    setDataRows(prev => prev.filter(row => row.id !== dataToDelete));
-    setSelectedRows(prev => prev.filter(id => id !== dataToDelete));
-    
-    setCategories(prev => {
-      return prev.map(category => {
-        const updatedGroups = category.groups.map(group => ({
+    updateProjectData({
+      dataRows: dataRows.filter(row => row.id !== dataToDelete),
+      selectedRows: selectedRows.filter(id => id !== dataToDelete),
+      categories: categories.map(category => ({
+        ...category,
+        groups: category.groups.map(group => ({
           ...group,
           items: group.items.filter(item => item.id !== dataToDelete), // 从所有分组中删除
           selectedItems: group.selectedItems.filter(id => id !== dataToDelete)
-        }));
-        
-        return {
-          ...category,
-          groups: updatedGroups
-        };
-      });
+        }))
+      }))
     });
     
     setDeleteDataDialogOpen(false);
@@ -717,27 +803,24 @@ export default function DataImport() {
   const handleBulkDeleteData = () => {
     if (selectedRows.length === 0) return;
     
-    setDataRows(prev => prev.filter(row => !selectedRows.includes(row.id)));
+    const count = selectedRows.length;
     
-    setCategories(prev => {
-      return prev.map(category => {
-        const updatedGroups = category.groups.map(group => ({
+    updateProjectData({
+      dataRows: dataRows.filter(row => !selectedRows.includes(row.id)),
+      selectedRows: [],
+      categories: categories.map(category => ({
+        ...category,
+        groups: category.groups.map(group => ({
           ...group,
           items: group.items.filter(item => !selectedRows.includes(item.id)), // 从所有分组中删除
           selectedItems: group.selectedItems?.filter(id => !selectedRows.includes(id)) || []
-        }));
-        
-        return {
-          ...category,
-          groups: updatedGroups,
-          allSelected: false,
-          partiallySelected: false
-        };
-      });
+        })),
+        allSelected: false,
+        partiallySelected: false
+      }))
     });
     
-    setSelectedRows([]);
-    toast.success(`已批量删除 ${selectedRows.length} 条数据`);
+    toast.success(`已批量删除 ${count} 条数据`);
   };
 
   return (
@@ -804,34 +887,129 @@ export default function DataImport() {
           </ScrollArea>
         </div>
 
-        {/* 右侧数据导入区域 */}
+        {/* 右侧内容区域 */}
         <div className="flex-1 flex flex-col">
           <div className="p-6 border-b border-border">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
-                  <Upload className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-foreground">数据导入</h1>
-                  <p className="text-muted-foreground">工艺数据导入与管理</p>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
+                <Upload className="w-4 h-4 text-primary-foreground" />
               </div>
-              
-              <div className="flex items-center gap-4">
-                <Button className="gap-2 hover:scale-105 transition-smooth">
-                  <FileText className="w-4 h-4" />
-                  选择文件导入
-                </Button>
-                <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
-                  <Save className="w-4 h-4" />
-                  保存分组
-                </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {projects.find(p => p.id === selectedProject)?.name || "项目"}
+                </h1>
+                <p className="text-muted-foreground">项目管理与数据分析</p>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+          {/* 标签页 */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+            <div className="px-6 pt-4 border-b border-border">
+              <TabsList className="w-full justify-start">
+                <TabsTrigger value="project-info" className="gap-2">
+                  <User className="w-4 h-4" />
+                  项目信息
+                </TabsTrigger>
+                <TabsTrigger value="data-management" className="gap-2">
+                  <Upload className="w-4 h-4" />
+                  数据管理
+                </TabsTrigger>
+                <TabsTrigger value="analysis-results" className="gap-2">
+                  <BarChart3 className="w-4 h-4" />
+                  分析结果
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            {/* 项目信息标签页 */}
+            <TabsContent value="project-info" className="flex-1 m-0">
+              <div className="p-6 space-y-6 overflow-y-auto h-full">
+                {(() => {
+                  const currentProject = projects.find(p => p.id === selectedProject);
+                  if (!currentProject) return null;
+                  
+                  return (
+                    <>
+                      <Card className="border-border/50 shadow-card">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <User className="w-5 h-5" />
+                            项目基本信息
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">项目名称</label>
+                              <p className="mt-1 text-base">{currentProject.name}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">项目状态</label>
+                              <div className="mt-1">
+                                <Badge variant={currentProject.status === "active" ? "default" : "secondary"}>
+                                  {currentProject.status === "active" ? "活跃" : "非活跃"}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">创建人</label>
+                              <p className="mt-1 text-base">{currentProject.creator}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">创建日期</label>
+                              <p className="mt-1 text-base">{currentProject.createdAt}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-muted-foreground">数据量</label>
+                              <p className="mt-1 text-base">{currentProject.dataCount} 条</p>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-sm font-medium text-muted-foreground">项目简介</label>
+                            <p className="mt-1 text-base">{currentProject.description}</p>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="border-border/50 shadow-card">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <Users className="w-5 h-5" />
+                            参与人员
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
+                            {currentProject.participants.map((participant, idx) => (
+                              <Badge key={idx} variant="outline" className="text-sm px-3 py-1">
+                                {participant}
+                              </Badge>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  );
+                })()}
+              </div>
+            </TabsContent>
+
+            {/* 数据管理标签页 */}
+            <TabsContent value="data-management" className="flex-1 m-0">
+              <div className="p-6 space-y-6 overflow-y-auto h-full">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-4">
+                    <Button className="gap-2 hover:scale-105 transition-smooth">
+                      <FileText className="w-4 h-4" />
+                      选择文件导入
+                    </Button>
+                    <Button variant="outline" className="gap-2 hover:scale-105 transition-smooth">
+                      <Save className="w-4 h-4" />
+                      保存分组
+                    </Button>
+                  </div>
+                </div>
             {/* 1. 导入数据 */}
             {dataRows.length > 0 && (
               <Card className="border-border/50 shadow-card hover:shadow-elegant transition-smooth overflow-hidden">
@@ -883,7 +1061,7 @@ export default function DataImport() {
                               checked={allDataSelected}
                               data-state={partiallyDataSelected ? "indeterminate" : allDataSelected ? "checked" : "unchecked"}
                               onCheckedChange={(checked) => {
-                                setSelectedRows(checked ? dataRows.map(r => r.id) : []);
+                                updateProjectData({ selectedRows: checked ? dataRows.map(r => r.id) : [] });
                               }}
                               className="rounded-sm"
                             />
@@ -932,11 +1110,11 @@ export default function DataImport() {
                               <Checkbox
                                 checked={selectedRows.includes(row.id)}
                                 onCheckedChange={(checked) => {
-                                  setSelectedRows(prev => 
-                                    checked 
-                                      ? [...prev, row.id]
-                                      : prev.filter(id => id !== row.id)
-                                  );
+                                  updateProjectData({
+                                    selectedRows: checked 
+                                      ? [...selectedRows, row.id]
+                                      : selectedRows.filter(id => id !== row.id)
+                                  });
                                 }}
                                 className="rounded-sm"
                               />
@@ -1281,7 +1459,53 @@ export default function DataImport() {
                 </Card>
               ))}
             </div>
-          </div>
+              </div>
+            </TabsContent>
+
+            {/* 分析结果标签页 */}
+            <TabsContent value="analysis-results" className="flex-1 m-0">
+              <div className="p-6 space-y-6 overflow-y-auto h-full">
+                <Card className="border-border/50 shadow-card">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5" />
+                      历史分析记录
+                    </CardTitle>
+                    <CardDescription>该项目的所有分析历史记录</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {(mockAnalysisHistory[selectedProject] || []).map((record) => (
+                        <div key={record.id} className="p-4 border border-border rounded-lg hover:bg-muted/30 transition-smooth">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{record.module}</h4>
+                              <p className="text-sm text-muted-foreground mt-1">{record.result}</p>
+                            </div>
+                            <Badge variant={
+                              record.status === "success" ? "default" : 
+                              record.status === "warning" ? "secondary" : 
+                              "destructive"
+                            }>
+                              {record.status === "success" ? "成功" : record.status === "warning" ? "警告" : "失败"}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-4 text-xs text-muted-foreground mt-3">
+                            <span>分析人：{record.analyst}</span>
+                            <span>模型版本：{record.modelVersion}</span>
+                            <span>分析时间：{record.analysisDate}</span>
+                          </div>
+                        </div>
+                      ))}
+                      {(!mockAnalysisHistory[selectedProject] || mockAnalysisHistory[selectedProject].length === 0) && (
+                        <p className="text-center text-muted-foreground py-8">暂无分析记录</p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
