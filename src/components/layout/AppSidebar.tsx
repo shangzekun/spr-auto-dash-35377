@@ -1,4 +1,18 @@
-import { Home, Upload, Settings, Layers, BarChart3, ChevronRight } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Bell,
+  Brain,
+  ChevronRight,
+  Factory,
+  Layers,
+  LineChart,
+  NotebookText,
+  Settings,
+  TestTubes,
+  Upload,
+  Workflow,
+} from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import {
@@ -14,41 +28,68 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { 
-    title: "主页", 
-    url: "/", 
-    icon: Home
+import type { ComponentType } from "react";
+
+type MenuSection = {
+  label: string;
+  items: {
+    title: string;
+    url: string;
+    icon: ComponentType<{ className?: string }>;
+    tag?: string;
+  }[];
+};
+
+const menuSections: MenuSection[] = [
+  {
+    label: "监控",
+    items: [
+      { title: "实时监控 + 预警", url: "/", icon: Activity, tag: "监控" },
+      { title: "异常预警中心", url: "/alerts", icon: Bell, tag: "预警" },
+    ],
   },
-  { 
-    title: "数据导入", 
-    url: "/data-import", 
-    icon: Upload
+  {
+    label: "工艺设计",
+    items: [
+      { title: "工艺方案设计", url: "/process-design", icon: Layers },
+      { title: "知识资产库", url: "/knowledge", icon: NotebookText },
+    ],
   },
-  { 
-    title: "功能模块", 
-    url: "/modules", 
-    icon: Layers
+  {
+    label: "仿真",
+    items: [{ title: "仿真验证", url: "/simulation", icon: LineChart }],
   },
-  { 
-    title: "核心场景", 
-    url: "/scenarios", 
-    icon: BarChart3
+  {
+    label: "试验",
+    items: [{ title: "试验排程", url: "/pilot-test", icon: TestTubes }],
   },
-  { 
-    title: "操作日志", 
-    url: "/operation-logs", 
-    icon: BarChart3
+  {
+    label: "量产",
+    items: [{ title: "生产监控", url: "/production-monitor", icon: Factory }],
   },
-  { 
-    title: "模型管理", 
-    url: "/model-management", 
-    icon: Settings
+  {
+    label: "模型",
+    items: [{ title: "模型与AI工作流", url: "/ai-models", icon: Brain }],
   },
-  { 
-    title: "设置", 
-    url: "/settings", 
-    icon: Settings
+  {
+    label: "协同",
+    items: [{ title: "协同流程", url: "/collaboration", icon: Workflow }],
+  },
+  {
+    label: "数据/日志",
+    items: [
+      { title: "数据导入", url: "/data-import", icon: Upload },
+      { title: "功能模块", url: "/modules", icon: Layers },
+      { title: "核心场景", url: "/scenarios", icon: Activity },
+      { title: "操作日志", url: "/operation-logs", icon: AlertTriangle },
+    ],
+  },
+  {
+    label: "设置",
+    items: [
+      { title: "模型管理（旧版）", url: "/model-management", icon: Brain },
+      { title: "系统设置", url: "/settings", icon: Settings },
+    ],
   },
 ];
 
@@ -66,7 +107,8 @@ export function AppSidebar() {
   };
 
   const getNavClassName = (path: string) => {
-    const baseClasses = "w-full justify-start transition-smooth group relative overflow-hidden";
+    const baseClasses =
+      "w-full justify-start transition-smooth group relative overflow-hidden";
     if (isActive(path)) {
       return `${baseClasses} bg-gradient-primary text-primary-foreground shadow-glow`;
     }
@@ -83,12 +125,16 @@ export function AppSidebar() {
         <div className="p-6 border-b border-sidebar-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center shadow-glow">
-              <BarChart3 className="w-4 h-4 text-primary-foreground" />
+              <Activity className="w-4 h-4 text-primary-foreground" />
             </div>
             {!isCollapsed && (
               <div>
-                <h1 className="font-bold text-lg text-sidebar-foreground">Riv Insight</h1>
-                <p className="text-xs text-sidebar-foreground/60">SPR工艺自动开发 by NIO</p>
+                <h1 className="font-bold text-lg text-sidebar-foreground">
+                  Riv Insight
+                </h1>
+                <p className="text-xs text-sidebar-foreground/60">
+                  SPR工艺自动开发 by NIO
+                </p>
               </div>
             )}
           </div>
@@ -104,23 +150,43 @@ export function AppSidebar() {
               <SidebarTrigger className="hover:bg-sidebar-accent hover:scale-105 transition-smooth h-6 w-6 flex-shrink-0" />
             )}
           </div>
-          
+
           <SidebarGroupContent>
-            <SidebarMenu className="space-y-2">
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavClassName(item.url)}>
-                      <item.icon className={`${isCollapsed ? "w-5 h-5" : "w-5 h-5 mr-3"} flex-shrink-0`} />
-                      {!isCollapsed && (
-                        <span className="font-medium">{item.title}</span>
-                      )}
-                      {!isCollapsed && isActive(item.url) && (
-                        <ChevronRight className="w-4 h-4 opacity-60" />
-                      )}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+            <SidebarMenu className="space-y-4">
+              {menuSections.map((section) => (
+                <div key={section.label} className="space-y-2">
+                  {!isCollapsed && (
+                    <div className="text-xs uppercase tracking-wide text-sidebar-foreground/60 px-2">
+                      {section.label}
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    {section.items.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton asChild>
+                          <NavLink to={item.url} className={getNavClassName(item.url)}>
+                            <item.icon
+                              className={`${
+                                isCollapsed ? "w-5 h-5" : "w-5 h-5 mr-3"
+                              } flex-shrink-0`}
+                            />
+                            {!isCollapsed && (
+                              <span className="font-medium flex-1">{item.title}</span>
+                            )}
+                            {!isCollapsed && item.tag && (
+                              <span className="text-[10px] rounded-full bg-primary/10 text-primary px-2 py-0.5">
+                                {item.tag}
+                              </span>
+                            )}
+                            {!isCollapsed && isActive(item.url) && (
+                              <ChevronRight className="w-4 h-4 opacity-60" />
+                            )}
+                          </NavLink>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </div>
+                </div>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
