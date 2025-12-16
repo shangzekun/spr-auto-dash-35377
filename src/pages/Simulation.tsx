@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,14 +30,37 @@ export default function Simulation() {
     queryKey: queryKeys.simulations,
     queryFn: getSimulationTasks,
   });
+  const [tasks, setTasks] = useState<SimulationTask[]>([]);
+
+  useEffect(() => {
+    if (data) setTasks(data);
+  }, [data]);
 
   const filtered = useMemo(() => {
-    return (data || []).filter((task) => {
+    return (tasks || []).filter((task) => {
       if (statusFilter !== "all" && task.status !== statusFilter) return false;
       if (keyword && !task.model.toLowerCase().includes(keyword.toLowerCase())) return false;
       return true;
     });
-  }, [data, statusFilter, keyword]);
+  }, [tasks, statusFilter, keyword]);
+
+  const retryTask = (id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id
+          ? { ...task, status: "running", progress: 5, updatedAt: new Date().toISOString().slice(0, 16).replace("T", " ") }
+          : task
+      )
+    );
+  };
+
+  const markCompleted = (id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, status: "completed", progress: 100, updatedAt: new Date().toISOString() } : task
+      )
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -121,38 +144,46 @@ export default function Simulation() {
                   </TableRow>
                 ) : (
                   filtered.map((task) => (
-                    <TableRow key={task.id} className="hover:bg-muted/30">
-                      <TableCell className="text-center font-medium">{task.model}</TableCell>
-                      <TableCell className="text-center text-muted-foreground">{task.parameterSet}</TableCell>
-                      <TableCell className="text-center">
-                        <TaskStatusBadge status={task.status} progress={task.progress} showProgress />
-                      </TableCell>
-                      <TableCell className="text-center text-muted-foreground">{task.createdAt}</TableCell>
-                      <TableCell className="text-center text-muted-foreground">{task.updatedAt || "-"}</TableCell>
-                      <TableCell className="text-center">
-                        {task.outputs?.length ? (
-                          <div className="flex flex-wrap gap-2 justify-center">
-                            {task.outputs.map((file) => (
-                              <Badge key={file} variant="secondary" className="bg-muted/60 text-foreground/80">
-                                {file}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Button variant="ghost" size="sm" className="h-8" aria-label="重试">
-                            <Repeat2 className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8" aria-label="下载">
-                            <Download className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-8" aria-label="上传输入">
-                            <UploadCloud className="h-4 w-4" />
-                          </Button>
+                  <TableRow key={task.id} className="hover:bg-muted/30">
+                    <TableCell className="text-center font-medium">{task.model}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{task.parameterSet}</TableCell>
+                    <TableCell className="text-center">
+                      <TaskStatusBadge status={task.status} progress={task.progress} showProgress />
+                    </TableCell>
+                    <TableCell className="text-center text-muted-foreground">{task.createdAt}</TableCell>
+                    <TableCell className="text-center text-muted-foreground">{task.updatedAt || "-"}</TableCell>
+                    <TableCell className="text-center">
+                      {task.outputs?.length ? (
+                        <div className="flex flex-wrap gap-2 justify-center">
+                          {task.outputs.map((file) => (
+                            <Badge key={file} variant="secondary" className="bg-muted/60 text-foreground/80">
+                              {file}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                      {task.inputFiles?.length ? (
+                        <div className="flex flex-wrap gap-2 justify-center mt-1 text-xs text-muted-foreground">
+                          输入: {task.inputFiles.join(", ")}
+                        </div>
+                      ) : null}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-8" aria-label="重试" onClick={() => retryTask(task.id)}>
+                          <Repeat2 className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8" aria-label="完成" onClick={() => markCompleted(task.id)}>
+                          <Rocket className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8" aria-label="下载">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-8" aria-label="上传输入">
+                          <UploadCloud className="h-4 w-4" />
+                        </Button>
                         </div>
                       </TableCell>
                     </TableRow>

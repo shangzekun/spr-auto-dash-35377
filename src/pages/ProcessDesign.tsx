@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -8,11 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Copy, Filter, PlusCircle, RefreshCw } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Copy, Filter, PlusCircle, RefreshCw, Shuffle } from "lucide-react";
 import { getProcessSchemes } from "@/lib/api/catalog";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { ProcessScheme } from "@/lib/api/types";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const statusOptions: ProcessScheme["status"][] = ["设计", "仿真", "试验", "量产"];
 
@@ -21,20 +22,49 @@ export default function ProcessDesign() {
   const [projectFilter, setProjectFilter] = useState("");
   const [tagFilter, setTagFilter] = useState("");
   const [cloneTarget, setCloneTarget] = useState<ProcessScheme | null>(null);
+  const [compareFrom, setCompareFrom] = useState<string>("");
+  const [compareTo, setCompareTo] = useState<string>("");
+  const [schemes, setSchemes] = useState<ProcessScheme[]>([]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: queryKeys.process.schemes,
     queryFn: getProcessSchemes,
   });
 
+  useEffect(() => {
+    if (data) {
+      setSchemes(data);
+    }
+  }, [data]);
+
   const filtered = useMemo(() => {
-    return (data || []).filter((item) => {
+    return (schemes || []).filter((item) => {
       if (statusFilter !== "all" && item.status !== statusFilter) return false;
       if (projectFilter && !item.project.toLowerCase().includes(projectFilter.toLowerCase())) return false;
       if (tagFilter && !item.tags.some((tag) => tag.includes(tagFilter))) return false;
       return true;
     });
-  }, [data, statusFilter, projectFilter, tagFilter]);
+  }, [schemes, statusFilter, projectFilter, tagFilter]);
+
+  const stageOrder: ProcessScheme["status"][] = ["设计", "仿真", "试验", "量产"];
+
+  const advanceStage = (id: string) => {
+    setSchemes((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const idx = stageOrder.indexOf(item.status);
+        const nextStatus = stageOrder[Math.min(stageOrder.length - 1, idx + 1)];
+        return { ...item, status: nextStatus, progress: Math.min(100, (item.progress || 0) + 15) };
+      })
+    );
+  };
+
+  const shuffleOwner = (id: string) => {
+    const owners = ["工艺-马宁", "工艺-李旸", "工艺-韩雪", "工艺-徐野"];
+    setSchemes((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, owner: owners[Math.floor(Math.random() * owners.length)] } : item))
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -113,6 +143,7 @@ export default function ProcessDesign() {
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">车型/项目：{scheme.project}</p>
+                      <p className="text-xs text-muted-foreground">责任人：{scheme.owner || "待分配"}</p>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <div className="flex flex-wrap gap-2">
@@ -128,6 +159,16 @@ export default function ProcessDesign() {
                         <Badge variant="outline" className="bg-emerald-100 text-emerald-800 border-emerald-200">
                           {scheme.status}
                         </Badge>
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => shuffleOwner(scheme.id)}>
+                          <Shuffle className="h-3.5 w-3.5 mr-1" /> 分派
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>阶段进度</span>
+                          <span>{scheme.progress ?? 0}%</span>
+                        </div>
+                        <Progress value={scheme.progress ?? 0} />
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>更新：{scheme.updatedAt}</span>
@@ -135,7 +176,18 @@ export default function ProcessDesign() {
                           <Button variant="ghost" size="sm" className="h-8" onClick={() => setCloneTarget(scheme)}>
                             <Copy className="h-4 w-4 mr-1" /> 复用
                           </Button>
-                          <Button variant="ghost" size="sm" className="h-8">
+                          <Button variant="ghost" size="sm" className="h-8" onClick={() => advanceStage(scheme.id)}>
+                            推进阶段
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8"
+                            onClick={() => {
+                              if (!compareFrom) setCompareFrom(scheme.id);
+                              else setCompareTo(scheme.id);
+                            }}
+                          >
                             版本对比
                           </Button>
                         </div>
@@ -168,6 +220,41 @@ export default function ProcessDesign() {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCloneTarget(null)}>取消</Button>
             <Button>确认复用</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={Boolean(compareFrom || compareTo)} onOpenChange={() => { setCompareFrom(""); setCompareTo(""); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>版本对比</DialogTitle>
+            <DialogDescription>选择两个方案进行标签/状态对比。</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Select value={compareFrom} onValueChange={setCompareFrom}>
+              <SelectTrigger><SelectValue placeholder="方案 A" /></SelectTrigger>
+              <SelectContent>
+                {schemes.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name} ({item.version})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={compareTo} onValueChange={setCompareTo}>
+              <SelectTrigger><SelectValue placeholder="方案 B" /></SelectTrigger>
+              <SelectContent>
+                {schemes.map((item) => (
+                  <SelectItem key={item.id} value={item.id}>{item.name} ({item.version})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {compareFrom && compareTo
+              ? `${compareFrom} 与 ${compareTo}：比较标签、进度、责任人以确认差异。`
+              : "请选择两个方案以开始对比"}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setCompareFrom(""); setCompareTo(""); }}>关闭</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -61,6 +61,8 @@ export type ProcessScheme = {
   version: string;
   tags: string[];
   updatedAt: string;
+  owner?: string;
+  progress?: number;
 };
 
 export type KnowledgeAsset = {
@@ -71,6 +73,7 @@ export type KnowledgeAsset = {
   owner: string;
   updatedAt: string;
   description: string;
+  usage?: number;
 };
 
 export type SimulationTask = {
@@ -82,6 +85,7 @@ export type SimulationTask = {
   createdAt: string;
   updatedAt?: string;
   outputs?: string[];
+  inputFiles?: string[];
 };
 
 export type PilotTask = {
@@ -93,6 +97,7 @@ export type PilotTask = {
   risk?: string;
   owner: string;
   status: RunHistoryRecord["status"];
+  location?: string;
 };
 
 export type ProductionSnapshot = {
@@ -101,6 +106,8 @@ export type ProductionSnapshot = {
   yieldRate: string;
   wip: number;
   status: "online" | "paused" | "alert";
+  issues?: string[];
+  parameters?: { name: string; value: string; trend: string }[];
 };
 
 export type ModelCard = {
@@ -111,6 +118,8 @@ export type ModelCard = {
   status: "online" | "offline" | "testing";
   metrics: { label: string; value: string }[];
   scope: string;
+  datasets?: string[];
+  defaultVersion?: boolean;
 };
 
 export type CollaborationLane = {
@@ -120,4 +129,5 @@ export type CollaborationLane = {
   status: RunHistoryRecord["status"];
   todos: string[];
   due: string;
+  notes?: string[];
 };

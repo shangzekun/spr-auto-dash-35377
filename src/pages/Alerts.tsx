@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,15 +33,48 @@ export default function Alerts() {
     queryKey: queryKeys.dashboard.alerts,
     queryFn: getDashboardAlerts,
   });
+  const [selected, setSelected] = useState<string[]>([]);
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  useEffect(() => {
+    if (data) {
+      setAlerts(data);
+      setSelected([]);
+    }
+  }, [data]);
 
   const filtered = useMemo(() => {
-    return (data || []).filter((alert) => {
+    return (alerts || []).filter((alert) => {
       if (levelFilter !== "all" && alert.level !== levelFilter) return false;
       if (statusFilter !== "all" && alert.status !== statusFilter) return false;
       if (keyword && !alert.title.toLowerCase().includes(keyword.toLowerCase())) return false;
       return true;
     });
-  }, [data, levelFilter, statusFilter, keyword]);
+  }, [alerts, levelFilter, statusFilter, keyword]);
+
+  const toggleSelect = (id: string, checked: boolean) => {
+    setSelected((prev) => (checked ? [...prev, id] : prev.filter((item) => item !== id)));
+  };
+
+  const selectAllFiltered = (checked: boolean) => {
+    setSelected(checked ? filtered.map((item) => item.id) : []);
+  };
+
+  const bulkUpdateStatus = (status: AlertItem["status"]) => {
+    setAlerts((prev) =>
+      prev.map((alert) => (selected.includes(alert.id) ? { ...alert, status } : alert))
+    );
+    setSelected([]);
+  };
+
+  const singleUpdate = (id: string, status: AlertItem["status"]) => {
+    setAlerts((prev) => prev.map((alert) => (alert.id === id ? { ...alert, status } : alert)));
+    setSelected((prev) => prev.filter((item) => item !== id));
+  };
+
+  const selectedAllOnPage =
+    filtered.length > 0 && filtered.every((item) => selected.includes(item.id));
+  const partiallySelected = selected.length > 0 && !selectedAllOnPage;
 
   return (
     <div className="space-y-6">
@@ -98,9 +131,30 @@ export default function Alerts() {
                 <SelectItem value="resolved">已关闭</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="secondary" className="h-9">
+            <Button
+              variant="secondary"
+              className="h-9"
+              onClick={() => bulkUpdateStatus("acknowledged")}
+              disabled={selected.length === 0}
+            >
               <ShieldCheck className="h-4 w-4 mr-1" /> 批量处置
             </Button>
+          </div>
+          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={selectedAllOnPage}
+                onCheckedChange={(v) => selectAllFiltered(Boolean(v))}
+                aria-label="全选当前列表"
+                className={partiallySelected ? "data-[state=indeterminate]:bg-primary/50" : ""}
+              />
+              <span>
+                已选 {selected.length} / {alerts.length} 条
+              </span>
+            </div>
+            <Badge variant="outline" className="bg-muted/60 border-muted/50">
+              仅当前筛选范围
+            </Badge>
           </div>
         </CardHeader>
         <CardContent>
@@ -112,7 +166,11 @@ export default function Alerts() {
                     <CardContent className="py-4 flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
-                          <Checkbox aria-label="选择" />
+                          <Checkbox
+                            aria-label="选择"
+                            checked={selected.includes(alert.id)}
+                            onCheckedChange={(v) => toggleSelect(alert.id, Boolean(v))}
+                          />
                           <Badge
                             variant="outline"
                             className={
@@ -140,10 +198,22 @@ export default function Alerts() {
                         {alert.owner && <span>责任人：{alert.owner}</span>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button size="sm" variant="outline" className="h-8">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-8"
+                          onClick={() => singleUpdate(alert.id, "acknowledged")}
+                          disabled={alert.status === "acknowledged"}
+                        >
                           <CheckCircle2 className="h-4 w-4 mr-1" /> 确认
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8"
+                          onClick={() => singleUpdate(alert.id, "resolved")}
+                          disabled={alert.status === "resolved"}
+                        >
                           <Trash2 className="h-4 w-4 mr-1" /> 关闭
                         </Button>
                         <Button size="sm" variant="ghost" className="h-8">

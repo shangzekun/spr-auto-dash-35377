@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity, BrainCircuit, Play, Power, RefreshCw } from "lucide-react";
+import { Activity, BrainCircuit, Play, Power, RefreshCw, Star } from "lucide-react";
 import { getModelCatalog } from "@/lib/api/catalog";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { ModelCard } from "@/lib/api/types";
@@ -27,14 +27,34 @@ export default function ModelHub() {
     queryKey: queryKeys.models,
     queryFn: getModelCatalog,
   });
+  const [models, setModels] = useState<ModelCard[]>([]);
+
+  useEffect(() => {
+    if (data) setModels(data);
+  }, [data]);
 
   const filtered = useMemo(() => {
-    return (data || []).filter((model) => {
+    return (models || []).filter((model) => {
       if (statusFilter !== "all" && model.status !== statusFilter) return false;
       if (keyword && !model.name.toLowerCase().includes(keyword.toLowerCase())) return false;
       return true;
     });
-  }, [data, statusFilter, keyword]);
+  }, [models, statusFilter, keyword]);
+
+  const toggleStatus = (id: string) => {
+    setModels((prev) =>
+      prev.map((model) => {
+        if (model.id !== id) return model;
+        const nextStatus =
+          model.status === "online" ? "offline" : model.status === "offline" ? "testing" : "online";
+        return { ...model, status: nextStatus };
+      })
+    );
+  };
+
+  const setDefault = (id: string) => {
+    setModels((prev) => prev.map((m) => ({ ...m, defaultVersion: m.id === id })));
+  };
 
   return (
     <div className="space-y-6">
@@ -94,16 +114,19 @@ export default function ModelHub() {
                     <CardHeader className="pb-2">
                       <div className="flex items-center justify-between gap-2">
                         <CardTitle className="text-base font-semibold">{model.name}</CardTitle>
-                        <Badge variant="outline" className="bg-muted/60 text-foreground/80">
-                          {model.version}
-                        </Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground">类型：{model.type}</p>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div className="flex flex-wrap gap-2">
-                        {model.metrics.map((metric) => (
-                          <Badge key={metric.label} variant="secondary" className="bg-primary/10 text-primary">
+                      <Badge variant="outline" className="bg-muted/60 text-foreground/80">
+                        {model.version}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">类型：{model.type}</p>
+                    {model.defaultVersion && (
+                      <Badge variant="secondary" className="bg-primary/10 text-primary">默认版本</Badge>
+                    )}
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {model.metrics.map((metric) => (
+                        <Badge key={metric.label} variant="secondary" className="bg-primary/10 text-primary">
                             {metric.label}: {metric.value}
                           </Badge>
                         ))}
@@ -112,14 +135,17 @@ export default function ModelHub() {
                         {statusLabel[model.status]}
                       </Badge>
                       <p className="text-sm text-muted-foreground">使用范围：{model.scope}</p>
+                      {model.datasets?.length ? (
+                        <p className="text-xs text-muted-foreground">数据集：{model.datasets.join(", ")}</p>
+                      ) : null}
                     </CardContent>
                     <CardFooter className="flex items-center justify-between gap-2">
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="h-8">
-                          <Power className="h-4 w-4 mr-1" /> {model.status === "online" ? "下线" : "上线"}
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => toggleStatus(model.id)}>
+                          <Power className="h-4 w-4 mr-1" /> {model.status === "online" ? "下线" : "切换状态"}
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8">
-                          <Activity className="h-4 w-4 mr-1" /> 切换版本
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => setDefault(model.id)}>
+                          <Star className={`h-4 w-4 mr-1 ${model.defaultVersion ? "text-primary" : ""}`} /> 设为默认
                         </Button>
                       </div>
                       <Dialog open={selectedModel?.id === model.id} onOpenChange={(open) => setSelectedModel(open ? model : null)}>

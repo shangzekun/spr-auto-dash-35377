@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageCircleMore, Paperclip, Workflow } from "lucide-react";
 import { getCollaborationLanes } from "@/lib/api/catalog";
@@ -15,6 +17,31 @@ export default function Collaboration() {
     queryKey: queryKeys.collaboration,
     queryFn: getCollaborationLanes,
   });
+  const [lanes, setLanes] = useState<CollaborationLane[]>([]);
+  const [completed, setCompleted] = useState<Record<string, number[]>>({});
+  const [newTodo, setNewTodo] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (data) setLanes(data);
+  }, [data]);
+
+  const toggleTodo = (laneId: string, idx: number) => {
+    setCompleted((prev) => {
+      const list = prev[laneId] || [];
+      return list.includes(idx)
+        ? { ...prev, [laneId]: list.filter((i) => i !== idx) }
+        : { ...prev, [laneId]: [...list, idx] };
+    });
+  };
+
+  const addTodo = (laneId: string) => {
+    const value = (newTodo[laneId] || "").trim();
+    if (!value) return;
+    setLanes((prev) =>
+      prev.map((lane) => (lane.id === laneId ? { ...lane, todos: [...lane.todos, value] } : lane))
+    );
+    setNewTodo((prev) => ({ ...prev, [laneId]: "" }));
+  };
 
   return (
     <div className="space-y-6">
@@ -40,7 +67,7 @@ export default function Collaboration() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-48 rounded-xl" />)
-          : data?.map((lane) => (
+          : lanes.map((lane) => (
               <Card key={lane.id} className="border-border/50 shadow-card hover:shadow-elegant transition-smooth">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-lg">
@@ -56,12 +83,29 @@ export default function Collaboration() {
                 <CardContent className="space-y-3">
                   <TaskStatusBadge status={lane.status} showProgress />
                   <div className="space-y-2 text-sm text-foreground">
-                    {lane.todos.map((todo, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/40">
-                        <Paperclip className="h-4 w-4 text-primary" />
-                        <span className="truncate">{todo}</span>
-                      </div>
-                    ))}
+                    {lane.todos.map((todo, idx) => {
+                      const done = completed[lane.id]?.includes(idx);
+                      return (
+                        <div key={idx} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/40">
+                          <Paperclip className={`h-4 w-4 ${done ? "text-muted-foreground" : "text-primary"}`} />
+                          <span className={`truncate ${done ? "line-through text-muted-foreground" : ""}`}>{todo}</span>
+                          <Button size="sm" variant="ghost" className="h-7 px-2 ml-auto" onClick={() => toggleTodo(lane.id, idx)}>
+                            {done ? "恢复" : "完成"}
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="添加待办"
+                        value={newTodo[lane.id] || ""}
+                        onChange={(e) => setNewTodo((prev) => ({ ...prev, [lane.id]: e.target.value }))}
+                        className="h-8"
+                      />
+                      <Button size="sm" className="h-8" onClick={() => addTodo(lane.id)}>
+                        添加
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Button size="sm" variant="outline" className="h-8">
@@ -69,6 +113,11 @@ export default function Collaboration() {
                     </Button>
                     <Button size="sm" variant="ghost" className="h-8">添加附件</Button>
                   </div>
+                  {lane.notes?.length ? (
+                    <div className="text-xs text-muted-foreground">
+                      备注：{lane.notes.join("；")}
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             ))}

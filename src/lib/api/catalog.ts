@@ -19,6 +19,8 @@ export async function getProcessSchemes(): Promise<ProcessScheme[]> {
       status: "设计",
       version: "v2.3",
       tags: ["SUV", "轻量化"],
+      owner: "工艺-马宁",
+      progress: 62,
       updatedAt: "2024-05-05",
     },
     {
@@ -29,6 +31,8 @@ export async function getProcessSchemes(): Promise<ProcessScheme[]> {
       status: "仿真",
       version: "v1.8",
       tags: ["高强钢", "热处理"],
+      owner: "工艺-李旸",
+      progress: 48,
       updatedAt: "2024-05-04",
     },
     {
@@ -39,7 +43,21 @@ export async function getProcessSchemes(): Promise<ProcessScheme[]> {
       status: "量产",
       version: "v3.1",
       tags: ["新能源", "电池包"],
+      owner: "工艺-韩雪",
+      progress: 100,
       updatedAt: "2024-05-02",
+    },
+    {
+      id: "pd-4",
+      name: "门环铆接降本方案",
+      model: "Cost-Opt",
+      project: "Gemini",
+      status: "试验",
+      version: "v1.2",
+      tags: ["降本", "试验中"],
+      owner: "工艺-徐野",
+      progress: 73,
+      updatedAt: "2024-05-03",
     },
   ]);
 }
@@ -54,6 +72,7 @@ export async function getKnowledgeAssets(): Promise<KnowledgeAsset[]> {
       owner: "工艺-马宁",
       updatedAt: "2024-05-05",
       description: "包含推荐铆接力、速度、压入深度的基线参数",
+      usage: 24,
     },
     {
       id: "kb-2",
@@ -63,6 +82,7 @@ export async function getKnowledgeAssets(): Promise<KnowledgeAsset[]> {
       owner: "仿真-李晨",
       updatedAt: "2024-05-04",
       description: "最新碰撞 CAE 结果与 SPR 失效模式分析",
+      usage: 15,
     },
     {
       id: "kb-3",
@@ -72,6 +92,17 @@ export async function getKnowledgeAssets(): Promise<KnowledgeAsset[]> {
       owner: "试验-周逸",
       updatedAt: "2024-05-03",
       description: "Q2 试验批次的原始记录和结果汇总",
+      usage: 8,
+    },
+    {
+      id: "kb-4",
+      title: "量产过程参数卡片",
+      type: "量产数据",
+      tags: ["总装", "SPC"],
+      owner: "质量-王磊",
+      updatedAt: "2024-05-02",
+      description: "含关键特性上下限、控制计划与采样频率",
+      usage: 30,
     },
   ]);
 }
@@ -87,6 +118,7 @@ export async function getSimulationTasks(): Promise<SimulationTask[]> {
       createdAt: "2024-05-05 09:00",
       updatedAt: "2024-05-05 10:15",
       outputs: ["logs.zip"],
+      inputFiles: ["dataset.csv", "config.json"],
     },
     {
       id: "sim-2",
@@ -97,6 +129,7 @@ export async function getSimulationTasks(): Promise<SimulationTask[]> {
       createdAt: "2024-05-04 16:20",
       updatedAt: "2024-05-04 17:10",
       outputs: ["report.pdf", "result.csv"],
+      inputFiles: ["door-inner.xlsx"],
     },
     {
       id: "sim-3",
@@ -106,6 +139,7 @@ export async function getSimulationTasks(): Promise<SimulationTask[]> {
       progress: 35,
       createdAt: "2024-05-05 07:30",
       updatedAt: "2024-05-05 08:00",
+      inputFiles: ["pack-line.json"],
     },
   ]);
 }
@@ -121,6 +155,7 @@ export async function getPilotSchedule(): Promise<PilotTask[]> {
       risk: "场地冲突",
       owner: "试验-赵璇",
       status: "running",
+      location: "A2 实验室",
     },
     {
       id: "pt-2",
@@ -130,6 +165,7 @@ export async function getPilotSchedule(): Promise<PilotTask[]> {
       priority: "中",
       owner: "试验-郭鸿",
       status: "pending",
+      location: "B3 台架",
     },
     {
       id: "pt-3",
@@ -140,15 +176,49 @@ export async function getPilotSchedule(): Promise<PilotTask[]> {
       risk: "资源紧张",
       owner: "质量-周倩",
       status: "completed",
+      location: "焊装线2",
     },
   ]);
 }
 
 export async function getProductionSnapshot(): Promise<ProductionSnapshot[]> {
   return mockRequest([
-    { line: "焊装一线", taktTime: "42s", yieldRate: "98.4%", wip: 14, status: "online" },
-    { line: "涂装线", taktTime: "55s", yieldRate: "97.2%", wip: 11, status: "alert" },
-    { line: "总装线", taktTime: "48s", yieldRate: "99.0%", wip: 9, status: "online" },
+    {
+      line: "焊装一线",
+      taktTime: "42s",
+      yieldRate: "98.4%",
+      wip: 14,
+      status: "online",
+      issues: ["节拍波动轻微"],
+      parameters: [
+        { name: "枪口温度", value: "72℃", trend: "稳定" },
+        { name: "铆接力", value: "8.2kN", trend: "上升" },
+      ],
+    },
+    {
+      line: "涂装线",
+      taktTime: "55s",
+      yieldRate: "97.2%",
+      wip: 11,
+      status: "alert",
+      issues: ["色差报警", "溶剂压力偏低"],
+      parameters: [
+        { name: "色差ΔE", value: "2.1", trend: "异常" },
+        { name: "溶剂压力", value: "0.9MPa", trend: "下降" },
+      ],
+    },
+    {
+      line: "总装线",
+      taktTime: "48s",
+      yieldRate: "99.0%",
+      wip: 9,
+      status: "online",
+      issues: [],
+      parameters: [
+        { name: "扭矩合格率", value: "99.2%", trend: "稳定" },
+        { name: "AGV 等待", value: "14s", trend: "下降" },
+      ],
+    },
   ]);
 }
 
@@ -165,6 +235,8 @@ export async function getModelCatalog(): Promise<ModelCard[]> {
         { label: "延迟", value: "320ms" },
       ],
       scope: "焊装、总装异常预警",
+      datasets: ["weld-2024Q1", "assy-2024Q1"],
+      defaultVersion: true,
     },
     {
       id: "m2",
@@ -177,6 +249,7 @@ export async function getModelCatalog(): Promise<ModelCard[]> {
         { label: "覆盖率", value: "87%" },
       ],
       scope: "SPR 工艺参数",
+      datasets: ["spr-lab", "spr-prod"],
     },
     {
       id: "m3",
@@ -189,6 +262,7 @@ export async function getModelCatalog(): Promise<ModelCard[]> {
         { label: "稳定性", value: "B+" },
       ],
       scope: "总装 AGV 调度",
+      datasets: ["agv-2024q2"],
     },
   ]);
 }
@@ -202,6 +276,7 @@ export async function getCollaborationLanes(): Promise<CollaborationLane[]> {
       status: "running",
       todos: ["审核门环方案", "输出仿真边界条件"],
       due: "2024-05-06",
+      notes: ["与供应商确认材料牌号"],
     },
     {
       id: "lane-2",
@@ -210,6 +285,7 @@ export async function getCollaborationLanes(): Promise<CollaborationLane[]> {
       status: "pending",
       todos: ["启动 CAE 计算", "准备材料曲线"],
       due: "2024-05-07",
+      notes: ["等待新网格模型"],
     },
     {
       id: "lane-3",
@@ -218,6 +294,7 @@ export async function getCollaborationLanes(): Promise<CollaborationLane[]> {
       status: "delayed",
       todos: ["场地协调", "设备预热"],
       due: "2024-05-05",
+      notes: ["机台维护预计1h"],
     },
     {
       id: "lane-4",
@@ -226,6 +303,7 @@ export async function getCollaborationLanes(): Promise<CollaborationLane[]> {
       status: "completed",
       todos: ["异常复盘", "优化预警阈值"],
       due: "2024-05-04",
+      notes: ["输出周报"],
     },
   ]);
 }

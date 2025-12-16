@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { AlarmClock, CalendarClock, MapPinned, PlayCircle } from "lucide-react";
+import { AlarmClock, CalendarClock, MapPinned, PlayCircle, ShieldOff } from "lucide-react";
 import { getPilotSchedule } from "@/lib/api/catalog";
 import { queryKeys } from "@/lib/api/queryKeys";
 import { PilotTask } from "@/lib/api/types";
@@ -27,14 +27,39 @@ export default function PilotTest() {
     queryKey: queryKeys.tests,
     queryFn: getPilotSchedule,
   });
+  const [tasks, setTasks] = useState<PilotTask[]>([]);
+
+  useEffect(() => {
+    if (data) setTasks(data);
+  }, [data]);
 
   const filtered = useMemo(() => {
-    return (data || []).filter((task) => {
+    return (tasks || []).filter((task) => {
       if (priority !== "all" && task.priority !== priority) return false;
       if (keyword && !task.name.toLowerCase().includes(keyword.toLowerCase())) return false;
       return true;
     });
-  }, [data, priority, keyword]);
+  }, [tasks, priority, keyword]);
+
+  const startTask = (id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, status: "running", risk: task.risk, start: task.start } : task
+      )
+    );
+  };
+
+  const completeTask = (id: string) => {
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.id === id ? { ...task, status: "completed", risk: undefined, end: new Date().toISOString() } : task
+      )
+    );
+  };
+
+  const clearRisk = (id: string) => {
+    setTasks((prev) => prev.map((task) => (task.id === id ? { ...task, risk: undefined } : task)));
+  };
 
   return (
     <div className="space-y-6">
@@ -113,6 +138,18 @@ export default function PilotTest() {
                           风险：{task.risk}
                         </Badge>
                       )}
+                      <div className="text-xs text-muted-foreground">地点：{task.location || "待安排"}</div>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-8" onClick={() => startTask(task.id)}>
+                          <PlayCircle className="h-4 w-4 mr-1" /> 启动
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => completeTask(task.id)}>
+                          完成
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-8" onClick={() => clearRisk(task.id)} disabled={!task.risk}>
+                          <ShieldOff className="h-4 w-4 mr-1" /> 消除风险
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
